@@ -27,7 +27,7 @@ Current app focus:
 - Multilingual Conversation Mode for source-language listening and target-language playback.
 - Push-to-talk translation mode for selected source-language input and target-language playback.
 - Server-side Gateway for hiding provider API keys from clients.
-- Provider abstraction layer with a production Qwen/Bailian adapter and a mock provider for tests.
+- Pluggable realtime provider layer with Bailian and mock providers.
 - Optional Gateway access token authentication with `APP_ACCESS_TOKEN`.
 - Basic Gateway resource limits and in-memory rate limiting.
 - Self-host deployment preparation for Alibaba Cloud Function Compute Custom Runtime ZIP packages.
@@ -84,7 +84,24 @@ The Gateway is responsible for:
 - Translation direction state.
 - Mapping neutral Gateway operations to the selected provider adapter.
 
-The Provider Layer is designed to be extensible. The current production provider is Qwen/Bailian realtime. A mock provider is included for local tests. Other providers can be added by implementing the realtime provider interface described in [docs/provider-architecture.md](docs/provider-architecture.md).
+The Provider Layer is designed to be extensible. The current production provider is Bailian realtime. A mock provider is included for local tests. Other providers can be added by implementing the realtime provider interface described in [docs/provider-architecture.md](docs/provider-architecture.md).
+
+## AI Providers
+
+The runtime supports pluggable AI providers.
+
+Current providers:
+
+- Bailian realtime provider.
+- Mock provider for testing.
+
+Provider selection:
+
+```env
+TRANSLATION_PROVIDER=bailian
+```
+
+The default provider is `bailian`, so existing deployments keep the same behavior unless this variable is changed.
 
 ## Security Model
 
@@ -184,6 +201,7 @@ Important variables:
 DASHSCOPE_API_KEY=
 DASHSCOPE_WORKSPACE_ID=
 DASHSCOPE_REGION=cn-beijing
+TRANSLATION_PROVIDER=bailian
 NEXT_PUBLIC_REALTIME_PROXY_URL=
 REALTIME_PROXY_PATH=/realtime
 APP_ACCESS_TOKEN=
@@ -294,7 +312,7 @@ Planned improvements:
 
 ## Known Limitations
 
-- The current production realtime provider adapter is Qwen/Bailian.
+- The current production realtime provider is Bailian.
 - Other providers require their own realtime adapter and compatible speech/audio capability.
 - Push-To-Talk Mode submits selected source-language turns rather than running as continuous always-on two-way speech.
 - Browser audio playback can require a user gesture depending on the browser.

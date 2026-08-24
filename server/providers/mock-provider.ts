@@ -1,4 +1,4 @@
-import type { RealtimeProvider, RealtimeProviderEvent, RealtimeProviderEventHandler } from "./realtime-provider";
+import type { RealtimeProvider, RealtimeProviderEvent, RealtimeProviderEventHandler } from "./interface";
 
 export class MockRealtimeProvider implements RealtimeProvider {
   readonly name = "mock";
@@ -16,14 +16,14 @@ export class MockRealtimeProvider implements RealtimeProvider {
     setTimeout(() => {
       this.connecting = false;
       this.open = true;
-      this.emit({ type: "open" });
+      this.emit({ type: "provider_connected" });
     }, 10);
   }
 
   updateSession(): void {
     setTimeout(() => {
       this.emit({
-        type: "message",
+        type: "provider_message",
         raw: JSON.stringify({ type: "session.updated" }),
         event: { type: "session.updated" }
       });
@@ -40,7 +40,7 @@ export class MockRealtimeProvider implements RealtimeProvider {
 
   commitAudio(): void {
     this.emit({
-      type: "message",
+      type: "provider_message",
       raw: JSON.stringify({ type: "input_audio_buffer.committed" }),
       event: { type: "input_audio_buffer.committed" }
     });
@@ -48,7 +48,7 @@ export class MockRealtimeProvider implements RealtimeProvider {
 
   finishSession(): void {
     this.emit({
-      type: "message",
+      type: "provider_message",
       raw: JSON.stringify({ type: "session.finished" }),
       event: { type: "session.finished" }
     });
@@ -61,7 +61,7 @@ export class MockRealtimeProvider implements RealtimeProvider {
 
     this.open = false;
     this.connecting = false;
-    this.emit({ type: "close" });
+    this.emit({ type: "provider_closed" });
   }
 
   terminate(): void {

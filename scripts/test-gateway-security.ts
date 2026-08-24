@@ -1,7 +1,7 @@
 import { strict as assert } from "node:assert";
 import { createServer, type Server } from "node:http";
 import WebSocket from "ws";
-import type { RealtimeProviderFactory } from "../server/providers/realtime-provider";
+import type { RealtimeProviderFactory } from "../server/providers/interface";
 
 process.env.DASHSCOPE_API_KEY = process.env.DASHSCOPE_API_KEY || "placeholder-server-only";
 process.env.DASHSCOPE_WORKSPACE_ID = process.env.DASHSCOPE_WORKSPACE_ID || "placeholder-workspace";

@@ -6,20 +6,20 @@ import {
   REALTIME_MODEL,
   normalizeDashScopeRegion
 } from "../../lib/config/realtime";
-import type { BailianServerEvent } from "../../types/realtime";
+import type { ProviderServerEvent } from "../../types/realtime";
 import type {
   RealtimeProvider,
   RealtimeProviderEvent,
   RealtimeProviderEventHandler,
   RealtimeProviderSessionOptions
-} from "./realtime-provider";
+} from "./interface";
 
 type ParsedProviderError = {
   code?: string;
   message?: string;
 };
 
-type QwenProviderConfig = {
+type BailianProviderConfig = {
   apiKey: string;
   workspaceId: string;
   region: string;
@@ -69,17 +69,20 @@ function parseProviderError(body: string): ParsedProviderError {
   }
 }
 
-function loadQwenProviderConfig(): QwenProviderConfig {
+function loadBailianProviderConfig(): BailianProviderConfig {
   return {
     apiKey: getCleanSecretEnv("DASHSCOPE_API_KEY"),
     workspaceId: getTrimmedEnv("DASHSCOPE_WORKSPACE_ID"),
     region: normalizeDashScopeRegion(getTrimmedEnv("DASHSCOPE_REGION")),
-    connectTimeoutMs: Number.parseInt(getTrimmedEnv("BAILIAN_CONNECT_TIMEOUT_MS") || "45000", 10)
+    connectTimeoutMs: Number.parseInt(
+      getTrimmedEnv("PROVIDER_CONNECT_TIMEOUT_MS") || getTrimmedEnv("BAILIAN_CONNECT_TIMEOUT_MS") || "45000",
+      10
+    )
   };
 }
 
-export function assertQwenProviderConfig(): void {
-  const config = loadQwenProviderConfig();
+export function assertBailianProviderConfig(): void {
+  const config = loadBailianProviderConfig();
 
   if (!config.apiKey || !config.workspaceId) {
     console.error("Missing required environment variables:");
@@ -88,7 +91,7 @@ export function assertQwenProviderConfig(): void {
   }
 }
 
-function getEndpoint(config: QwenProviderConfig): string {
+function getEndpoint(config: BailianProviderConfig): string {
   const encodedModel = encodeURIComponent(REALTIME_MODEL);
   return `wss://${config.workspaceId}.${config.region}.maas.aliyuncs.com/api-ws/v1/realtime?model=${encodedModel}`;
 }
@@ -153,14 +156,14 @@ function createAudioCommitEvent() {
   };
 }
 
-export class QwenRealtimeProvider implements RealtimeProvider {
-  readonly name = "qwen";
+export class BailianRealtimeProvider implements RealtimeProvider {
+  readonly name = "bailian";
 
-  private readonly config: QwenProviderConfig;
+  private readonly config: BailianProviderConfig;
   private socket: WebSocket | null = null;
   private handler: RealtimeProviderEventHandler = () => {};
 
-  constructor(config = loadQwenProviderConfig()) {
+  constructor(config = loadBailianProviderConfig()) {
     this.config = config;
   }
 
@@ -183,7 +186,7 @@ export class QwenRealtimeProvider implements RealtimeProvider {
 
     socket.on("open", () => {
       if (socket === this.socket) {
-        this.emit({ type: "open" });
+        this.emit({ type: "provider_connected" });
       }
     });
 
@@ -193,16 +196,16 @@ export class QwenRealtimeProvider implements RealtimeProvider {
       }
 
       const raw = rawMessage.toString();
-      let event: BailianServerEvent | undefined;
+      let event: ProviderServerEvent | undefined;
 
       try {
-        event = JSON.parse(raw) as BailianServerEvent;
+        event = JSON.parse(raw) as ProviderServerEvent;
       } catch {
         event = undefined;
       }
 
       this.emit({
-        type: "message",
+        type: "provider_message",
         raw,
         event
       });
@@ -220,7 +223,7 @@ export class QwenRealtimeProvider implements RealtimeProvider {
         const parsed = parseProviderError(body);
 
         this.emit({
-          type: "unexpected-response",
+          type: "provider_unexpected_response",
           statusCode: response.statusCode,
           providerCode: parsed.code,
           message: parsed.message || "无法连接翻译服务。"
@@ -231,7 +234,7 @@ export class QwenRealtimeProvider implements RealtimeProvider {
     socket.on("error", (error) => {
       if (socket === this.socket) {
         this.emit({
-          type: "error",
+          type: "provider_error",
           message: error.message
         });
       }
@@ -239,7 +242,7 @@ export class QwenRealtimeProvider implements RealtimeProvider {
 
     socket.on("close", () => {
       if (socket === this.socket) {
-        this.emit({ type: "close" });
+        this.emit({ type: "provider_closed" });
       }
     });
   }
@@ -306,6 +309,6 @@ export class QwenRealtimeProvider implements RealtimeProvider {
   }
 }
 
-export function createQwenRealtimeProvider(): RealtimeProvider {
-  return new QwenRealtimeProvider();
+export function createBailianRealtimeProvider(): RealtimeProvider {
+  return new BailianRealtimeProvider();
 }

@@ -100,7 +100,7 @@ export type BrowserControlMessage = {
   type: "browser.ptt_release";
 };
 
-export type BailianServerEvent = {
+export type ProviderServerEvent = {
   type?: string;
   item_id?: string;
   response_id?: string;
@@ -120,4 +120,4 @@ export type ClientRealtimeMessage =
   | ProxyReadyMessage
   | ProxyModeReadyMessage
   | ProxyErrorMessage
-  | BailianServerEvent;
+  | ProviderServerEvent;

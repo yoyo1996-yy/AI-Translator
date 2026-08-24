@@ -11,11 +11,11 @@ import {
 } from "../lib/config/realtime";
 import type {
   AppStatus,
-  BailianServerEvent,
   ClientRealtimeMessage,
   ConversationMode,
   DebugInfo,
   LanguageCode,
+  ProviderServerEvent,
   ProxyErrorMessage,
   ProxyModeReadyMessage,
   ProxyStatusMessage,
@@ -51,11 +51,11 @@ function createHistoryId(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
-function getStreamingText(event: BailianServerEvent): string {
+function getStreamingText(event: ProviderServerEvent): string {
   return `${event.text ?? ""}${event.stash ?? ""}`;
 }
 
-function mergeStreamingText(current: string, event: BailianServerEvent): string {
+function mergeStreamingText(current: string, event: ProviderServerEvent): string {
   const next = getStreamingText(event);
 
   if (!next) {
@@ -69,11 +69,11 @@ function mergeStreamingText(current: string, event: BailianServerEvent): string 
   return `${current}${next}`;
 }
 
-function getFinalText(event: BailianServerEvent): string {
+function getFinalText(event: ProviderServerEvent): string {
   return event.transcript ?? event.text ?? "";
 }
 
-function getAudioDelta(event: BailianServerEvent): string {
+function getAudioDelta(event: ProviderServerEvent): string {
   return event.delta ?? event.audio ?? "";
 }
 
@@ -594,8 +594,8 @@ export function useRealtimeTranslation() {
     ]
   );
 
-  const handleBailianEvent = useCallback(
-    async (event: BailianServerEvent) => {
+  const handleProviderEvent = useCallback(
+    async (event: ProviderServerEvent) => {
       if (!event.type) {
         return;
       }
@@ -971,7 +971,7 @@ export function useRealtimeTranslation() {
               return;
             }
 
-            await handleBailianEvent(message);
+            await handleProviderEvent(message);
           };
         });
 
@@ -988,7 +988,7 @@ export function useRealtimeTranslation() {
     }
   }, [
     countPcmDuration,
-    handleBailianEvent,
+    handleProviderEvent,
     handleModeReady,
     microphone,
     patchDebugInfo,

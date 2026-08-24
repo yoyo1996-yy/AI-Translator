@@ -1,5 +1,5 @@
 import type {
-  BailianServerEvent,
+  ProviderServerEvent,
   LanguageCode,
   TranslationDirection,
   TurnDetectionMode
@@ -15,25 +15,25 @@ export type RealtimeProviderSessionOptions = {
 
 export type RealtimeProviderEvent =
   | {
-      type: "open";
+      type: "provider_connected";
     }
   | {
-      type: "message";
+      type: "provider_message";
       raw: string;
-      event?: BailianServerEvent;
+      event?: ProviderServerEvent;
     }
   | {
-      type: "unexpected-response";
+      type: "provider_unexpected_response";
       statusCode?: number;
       providerCode?: string;
       message?: string;
     }
   | {
-      type: "error";
+      type: "provider_error";
       message: string;
     }
   | {
-      type: "close";
+      type: "provider_closed";
     };
 
 export type RealtimeProviderEventHandler = (event: RealtimeProviderEvent) => void;

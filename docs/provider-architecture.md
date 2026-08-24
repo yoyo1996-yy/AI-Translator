@@ -35,10 +35,16 @@ RealtimeProvider
 
 Current adapters:
 
-- `server/providers/qwen-provider.ts`: production Qwen/Bailian realtime adapter.
+- `server/providers/bailian-provider.ts`: production Bailian realtime adapter.
 - `server/providers/mock-provider.ts`: local test adapter with no external network calls.
 
-The Qwen adapter is still the default provider. No environment variable or deployment behavior changed in this phase.
+Provider selection is centralized in `server/providers/index.ts`.
+
+```env
+TRANSLATION_PROVIDER=bailian
+```
+
+The default provider is `bailian`, so existing deployments keep the same behavior unless this variable is changed.
 
 ## Adding Another Provider
 

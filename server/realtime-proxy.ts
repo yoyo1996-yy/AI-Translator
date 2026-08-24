@@ -15,8 +15,12 @@ import {
   getClientIp,
   isRequestAuthenticated,
 } from "./config/security";
-import type { RealtimeProvider, RealtimeProviderFactory } from "./providers/realtime-provider";
-import { assertQwenProviderConfig, createQwenRealtimeProvider } from "./providers/qwen-provider";
+import {
+  assertSelectedProviderConfig,
+  createSelectedRealtimeProviderFactory,
+  type RealtimeProvider,
+  type RealtimeProviderFactory
+} from "./providers";
 import type {
   BrowserControlMessage,
   LanguageCode,
@@ -258,11 +262,11 @@ export function attachRealtimeProxy(
 ): WebSocketServer {
   log("[Proxy] realtime websocket attached");
 
-const autoConnect = options.autoConnect ?? true;
-const securityRuntime = options.securityRuntime ?? createGatewaySecurityRuntime();
-const providerFactory = options.providerFactory ?? createQwenRealtimeProvider;
+  const autoConnect = options.autoConnect ?? true;
+  const securityRuntime = options.securityRuntime ?? createGatewaySecurityRuntime();
+  const providerFactory = options.providerFactory ?? createSelectedRealtimeProviderFactory();
 
-wss.on("connection", (browserSocket, request) => {
+  wss.on("connection", (browserSocket, request) => {
   log("[Browser] connected");
 
   let providerSession: RealtimeProvider | null = null;
@@ -442,7 +446,7 @@ wss.on("connection", (browserSocket, request) => {
     hasLoggedTargetPlayback = false;
     hasLoggedTargetTranslationStart = false;
 
-    log("[Bailian] connecting");
+    log("[Provider] connecting");
     sendStatus({
       bailianWs: "Connecting",
       realtimeSession: "Connecting"
@@ -450,7 +454,10 @@ wss.on("connection", (browserSocket, request) => {
 
     const provider = providerFactory();
     providerSession = provider;
-    const providerConnectTimeoutMs = Number.parseInt(getTrimmedEnv("BAILIAN_CONNECT_TIMEOUT_MS") || "45000", 10);
+    const providerConnectTimeoutMs = Number.parseInt(
+      getTrimmedEnv("PROVIDER_CONNECT_TIMEOUT_MS") || getTrimmedEnv("BAILIAN_CONNECT_TIMEOUT_MS") || "45000",
+      10
+    );
     const providerConnectTimer = setTimeout(
       () => {
         if (provider !== providerSession || currentSessionReady) {
@@ -459,9 +466,9 @@ wss.on("connection", (browserSocket, request) => {
 
         safeSend(browserSocket, {
           type: "proxy.error",
-          message: "Bailian Realtime connection timed out. Check Function Compute public internet access and environment variables."
+          message: "Realtime provider connection timed out. Check public internet access and provider environment variables."
         });
-        log("[Bailian] connection timeout");
+        log("[Provider] connection timeout");
         provider.terminate();
       },
       Number.isFinite(providerConnectTimeoutMs) ? providerConnectTimeoutMs : 45000
@@ -473,13 +480,13 @@ wss.on("connection", (browserSocket, request) => {
       }
 
       switch (providerEvent.type) {
-        case "open":
+        case "provider_connected":
           const providerSourceLanguage =
             direction === "conversation" ? currentTargetLanguage : currentSourceLanguage;
           const providerTargetLanguage =
             direction === "conversation" ? currentSourceLanguage : currentTargetLanguage;
 
-          log("[Bailian] connected");
+          log("[Provider] connected");
           log(
             direction === "push_to_talk"
               ? `[Direction] ${providerSourceLanguage} -> ${providerTargetLanguage}`
@@ -496,12 +503,12 @@ wss.on("connection", (browserSocket, request) => {
           });
           sendStatus();
           break;
-        case "message": {
+        case "provider_message": {
           const event = providerEvent.event;
           const messageText = providerEvent.raw;
 
           if (!event?.type) {
-            debug("[Bailian] received non-json message");
+            debug("[Provider] received non-json message");
             forwardRaw(browserSocket, messageText);
             return;
           }
@@ -512,7 +519,7 @@ wss.on("connection", (browserSocket, request) => {
             direction: currentDirection,
             turnDetection: currentTurnDetection
           });
-          debug(`[Bailian] event ${event.type}`);
+          debug(`[Provider] event ${event.type}`);
 
           switch (event.type) {
             case "session.updated":
@@ -604,7 +611,7 @@ wss.on("connection", (browserSocket, request) => {
           forwardRaw(browserSocket, messageText);
           break;
         }
-        case "unexpected-response":
+        case "provider_unexpected_response":
           clearTimeout(providerConnectTimer);
           safeSend(browserSocket, {
             type: "proxy.error",
@@ -612,18 +619,18 @@ wss.on("connection", (browserSocket, request) => {
             aliyunCode: providerEvent.providerCode,
             message: providerEvent.message || "无法连接翻译服务。"
           });
-          log(`[Bailian] connection failed ${providerEvent.statusCode ?? "unknown"}`);
+          log(`[Provider] connection failed ${providerEvent.statusCode ?? "unknown"}`);
           closeBrowser();
           break;
-        case "error":
+        case "provider_error":
           clearTimeout(providerConnectTimer);
           safeSend(browserSocket, {
             type: "proxy.error",
             message: providerEvent.message
           });
-          log("[Bailian] error");
+          log("[Provider] error");
           break;
-        case "close":
+        case "provider_closed":
           clearTimeout(providerConnectTimer);
           currentSessionReady = false;
           safeSend(browserSocket, {
@@ -789,7 +796,7 @@ wss.on("connection", (browserSocket, request) => {
     cleanupSecuritySession();
     closeProvider();
   });
-});
+  });
 
   return wss;
 }
@@ -806,7 +813,7 @@ export function createRealtimeProxyServer(
   } = {}
 ): WebSocketServer {
   if (!options.providerFactory) {
-    assertQwenProviderConfig();
+    assertSelectedProviderConfig();
   }
 
   const securityRuntime = createGatewaySecurityRuntime(options.securityConfig);
