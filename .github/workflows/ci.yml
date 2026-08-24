@@ -73,6 +73,11 @@ jobs:
       - name: Sync Capacitor Android project
         run: npx cap sync android
 
+      - name: Use public Gradle distribution
+        working-directory: android
+        run: |
+          sed -i 's#^distributionUrl=.*#distributionUrl=https\\://services.gradle.org/distributions/gradle-8.14.3-bin.zip#' gradle/wrapper/gradle-wrapper.properties
+
       - name: Make Gradle wrapper executable
         working-directory: android
         run: chmod +x ./gradlew
