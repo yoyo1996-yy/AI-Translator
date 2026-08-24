@@ -94,7 +94,9 @@ function getEndpoint(config: QwenProviderConfig): string {
 }
 
 function createSessionUpdateEvent(options: RealtimeProviderSessionOptions) {
-  const isChineseToPartner = options.direction === "chinese_to_partner";
+  const isPushToTalk = options.direction === "push_to_talk";
+  const transcriptionLanguage =
+    options.sourceLanguage && options.sourceLanguage !== "auto" ? { language: options.sourceLanguage } : {};
 
   return {
     event_id: `event_${randomUUID()}`,
@@ -106,10 +108,10 @@ function createSessionUpdateEvent(options: RealtimeProviderSessionOptions) {
       output_audio_format: "pcm",
       input_audio_transcription: {
         model: ASR_MODEL,
-        ...(isChineseToPartner ? { language: "zh" } : {})
+        ...transcriptionLanguage
       },
       translation: {
-        language: isChineseToPartner ? options.partnerLanguage : "zh",
+        language: options.targetLanguage,
         ...(Object.keys(options.corpusPhrases).length > 0
           ? {
               corpus: {
@@ -118,7 +120,7 @@ function createSessionUpdateEvent(options: RealtimeProviderSessionOptions) {
             }
           : {})
       },
-      turn_detection: isChineseToPartner
+      turn_detection: isPushToTalk
         ? null
         : {
             type: "server_vad",

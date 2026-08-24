@@ -19,7 +19,7 @@ import type { RealtimeProvider, RealtimeProviderFactory } from "./providers/real
 import { assertQwenProviderConfig, createQwenRealtimeProvider } from "./providers/qwen-provider";
 import type {
   BrowserControlMessage,
-  PartnerLanguage,
+  LanguageCode,
   TranslationDirection,
   TurnDetectionMode
 } from "../types/realtime";
@@ -138,12 +138,24 @@ function loadGlossary(): Required<TranslationGlossary> {
 
 const translationGlossary = loadGlossary();
 
-function getCorpusPhrases(direction: TranslationDirection, partnerLanguage: PartnerLanguage): Record<string, string> {
-  if (direction === "other_to_chinese") {
+function getCorpusPhrases(
+  direction: TranslationDirection,
+  sourceLanguage: LanguageCode,
+  targetLanguage: LanguageCode
+): Record<string, string> {
+  if (direction === "conversation" && targetLanguage === "zh") {
     return translationGlossary.other_to_zh;
   }
 
-  return partnerLanguage === "en" ? translationGlossary.zh_to_en : translationGlossary.zh_to_ja;
+  if (sourceLanguage === "zh" && targetLanguage === "en") {
+    return translationGlossary.zh_to_en;
+  }
+
+  if (sourceLanguage === "zh" && targetLanguage === "ja") {
+    return translationGlossary.zh_to_ja;
+  }
+
+  return {};
 }
 
 function safeSend(browserSocket: WebSocket, payload: unknown): void {
@@ -159,7 +171,7 @@ function forwardRaw(browserSocket: WebSocket, payload: string): void {
 }
 
 function getTurnDetection(direction: TranslationDirection): TurnDetectionMode {
-  return direction === "chinese_to_partner" ? "manual" : "server_vad";
+  return direction === "push_to_talk" ? "manual" : "server_vad";
 }
 
 function verifyBrowserOrigin(origin: string | undefined, done: (result: boolean, code?: number, name?: string) => void): void {
@@ -254,8 +266,9 @@ wss.on("connection", (browserSocket, request) => {
   log("[Browser] connected");
 
   let providerSession: RealtimeProvider | null = null;
-  let currentDirection: TranslationDirection = "other_to_chinese";
-  let currentPartnerLanguage: PartnerLanguage = "ja";
+  let currentDirection: TranslationDirection = "conversation";
+  let currentSourceLanguage: LanguageCode = "zh";
+  let currentTargetLanguage: LanguageCode = "ja";
   let currentTurnDetection: TurnDetectionMode = "server_vad";
   let currentSessionReady = false;
   let pendingSwitchDirection: TranslationDirection | null = null;
@@ -263,8 +276,8 @@ wss.on("connection", (browserSocket, request) => {
   let finishTimer: NodeJS.Timeout | null = null;
   let hasLoggedAudioStreaming = false;
   let hasLoggedPttStreaming = false;
-  let hasLoggedJapanesePlayback = false;
-  let hasLoggedJapaneseTranslationStart = false;
+  let hasLoggedTargetPlayback = false;
+  let hasLoggedTargetTranslationStart = false;
   let authenticated = isRequestAuthenticated(request, securityRuntime.config);
   let sessionAudioBytes = 0;
   let sessionClosed = false;
@@ -328,11 +341,13 @@ wss.on("connection", (browserSocket, request) => {
       bailianWs: autoConnect ? "Connecting" : "Disconnected",
       realtimeSession: autoConnect ? "Connecting" : "Disconnected",
       direction: currentDirection,
+      sourceLanguage: currentSourceLanguage,
+      targetLanguage: currentTargetLanguage,
       turnDetection: currentTurnDetection
     });
 
     if (autoConnect) {
-      connectProvider("other_to_chinese");
+      connectProvider("conversation");
     }
   };
 
@@ -342,7 +357,8 @@ wss.on("connection", (browserSocket, request) => {
       browserWs: browserSocket.readyState === WebSocket.OPEN ? "Connected" : "Disconnected",
       bailianWs: providerSession?.isOpen() ? "Connected" : "Disconnected",
       realtimeSession: currentSessionReady ? "Connected" : "Connecting",
-      partnerLanguage: currentPartnerLanguage,
+      sourceLanguage: currentSourceLanguage,
+      targetLanguage: currentTargetLanguage,
       direction: currentDirection,
       turnDetection: currentTurnDetection,
       ...patch
@@ -423,8 +439,8 @@ wss.on("connection", (browserSocket, request) => {
     currentSessionReady = false;
     hasLoggedAudioStreaming = false;
     hasLoggedPttStreaming = false;
-    hasLoggedJapanesePlayback = false;
-    hasLoggedJapaneseTranslationStart = false;
+    hasLoggedTargetPlayback = false;
+    hasLoggedTargetTranslationStart = false;
 
     log("[Bailian] connecting");
     sendStatus({
@@ -458,13 +474,25 @@ wss.on("connection", (browserSocket, request) => {
 
       switch (providerEvent.type) {
         case "open":
+          const providerSourceLanguage =
+            direction === "conversation" ? currentTargetLanguage : currentSourceLanguage;
+          const providerTargetLanguage =
+            direction === "conversation" ? currentSourceLanguage : currentTargetLanguage;
+
           log("[Bailian] connected");
-          log(direction === "chinese_to_partner" ? `[Direction] zh -> ${currentPartnerLanguage}` : "[Direction] other -> zh");
+          log(
+            direction === "push_to_talk"
+              ? `[Direction] ${providerSourceLanguage} -> ${providerTargetLanguage}`
+              : `[Direction] ${providerSourceLanguage} -> ${providerTargetLanguage}`
+          );
           provider.updateSession({
             direction,
-            partnerLanguage: currentPartnerLanguage,
+            sourceLanguage: providerSourceLanguage,
+            targetLanguage: providerTargetLanguage,
             turnDetection: currentTurnDetection,
-            corpusPhrases: enableTranslationGlossary ? getCorpusPhrases(direction, currentPartnerLanguage) : {}
+            corpusPhrases: enableTranslationGlossary
+              ? getCorpusPhrases(direction, providerSourceLanguage, providerTargetLanguage)
+              : {}
           });
           sendStatus();
           break;
@@ -490,15 +518,16 @@ wss.on("connection", (browserSocket, request) => {
             case "session.updated":
               clearTimeout(providerConnectTimer);
               currentSessionReady = true;
-              if (currentDirection === "chinese_to_partner") {
-                log(`[Session] zh -> ${currentPartnerLanguage} manual mode ready`);
+              if (currentDirection === "push_to_talk") {
+                log(`[Session] push-to-talk ${currentSourceLanguage} -> ${currentTargetLanguage} ready`);
               } else {
-                log("[Session] listen mode ready");
+                log(`[Session] conversation ${currentTargetLanguage} -> ${currentSourceLanguage} ready`);
               }
               safeSend(browserSocket, {
                 type: "proxy.mode_ready",
                 direction: currentDirection,
-                partnerLanguage: currentPartnerLanguage,
+                sourceLanguage: currentSourceLanguage,
+                targetLanguage: currentTargetLanguage,
                 turnDetection: currentTurnDetection
               });
               safeSend(browserSocket, { type: "proxy.ready" });
@@ -519,18 +548,22 @@ wss.on("connection", (browserSocket, request) => {
               log("[Audio] committed");
               break;
             case "response.audio_transcript.text":
-              if (currentDirection === "chinese_to_partner" && !hasLoggedJapaneseTranslationStart) {
-                hasLoggedJapaneseTranslationStart = true;
-                log("[Translation] ja started");
+              if (currentDirection === "push_to_talk" && !hasLoggedTargetTranslationStart) {
+                hasLoggedTargetTranslationStart = true;
+                log("[Translation] target started");
               }
               break;
             case "response.audio_transcript.done":
-              log(currentDirection === "chinese_to_partner" ? `[Translation] ${currentPartnerLanguage} completed` : "[Translation] completed");
+              log(
+                currentDirection === "push_to_talk"
+                  ? `[Translation] ${currentTargetLanguage} completed`
+                  : "[Translation] completed"
+              );
               break;
             case "response.audio.delta":
-              if (currentDirection === "chinese_to_partner" && !hasLoggedJapanesePlayback) {
-                hasLoggedJapanesePlayback = true;
-                log("[Playback] ja started");
+              if (currentDirection === "push_to_talk" && !hasLoggedTargetPlayback) {
+                hasLoggedTargetPlayback = true;
+                log("[Playback] target started");
               }
               break;
             case "session.finished":
@@ -660,12 +693,12 @@ wss.on("connection", (browserSocket, request) => {
 
       if (!hasLoggedAudioStreaming) {
         hasLoggedAudioStreaming = true;
-        log(currentDirection === "chinese_to_partner" ? "[PTT] streaming Chinese audio" : "[Audio] streaming");
+        log(currentDirection === "push_to_talk" ? "[PTT] streaming source audio" : "[Audio] streaming");
       }
 
-      if (currentDirection === "chinese_to_partner" && !hasLoggedPttStreaming) {
+      if (currentDirection === "push_to_talk" && !hasLoggedPttStreaming) {
         hasLoggedPttStreaming = true;
-        log("[PTT] streaming Chinese audio");
+        log("[PTT] streaming source audio");
       }
 
       const audio = Buffer.isBuffer(rawMessage)
@@ -695,30 +728,39 @@ wss.on("connection", (browserSocket, request) => {
 
       if (message.type === "browser.ptt_release") {
         log("[PTT] released");
-        if (currentDirection === "chinese_to_partner" && providerSession?.isOpen()) {
+        if (currentDirection === "push_to_talk" && providerSession?.isOpen()) {
           providerSession.commitAudio();
         }
         return;
       }
 
       if (message.type === "browser.set_direction") {
-        if (message.direction === currentDirection && currentSessionReady) {
+        const nextSourceLanguage = message.sourceLanguage ?? currentSourceLanguage;
+        const nextTargetLanguage = message.targetLanguage ?? currentTargetLanguage;
+        const sameSessionConfig =
+          message.direction === currentDirection &&
+          nextSourceLanguage === currentSourceLanguage &&
+          nextTargetLanguage === currentTargetLanguage;
+
+        if (sameSessionConfig && currentSessionReady) {
           safeSend(browserSocket, {
             type: "proxy.mode_ready",
             direction: currentDirection,
-            partnerLanguage: currentPartnerLanguage,
+            sourceLanguage: currentSourceLanguage,
+            targetLanguage: currentTargetLanguage,
             turnDetection: currentTurnDetection
           });
           return;
         }
 
-        currentPartnerLanguage = message.partnerLanguage ?? currentPartnerLanguage;
+        currentSourceLanguage = nextSourceLanguage;
+        currentTargetLanguage = nextTargetLanguage;
 
-        if (message.direction === "chinese_to_partner") {
+        if (message.direction === "push_to_talk") {
           log("[PTT] pressed");
-          log(`[Session] switching to zh -> ${currentPartnerLanguage} manual`);
+          log(`[Session] switching to ${currentSourceLanguage} -> ${currentTargetLanguage} manual`);
         } else {
-          log("[Session] restoring other -> zh VAD");
+          log(`[Session] restoring ${currentTargetLanguage} -> ${currentSourceLanguage} VAD`);
         }
 
         finishCurrentSession(message.direction, true);

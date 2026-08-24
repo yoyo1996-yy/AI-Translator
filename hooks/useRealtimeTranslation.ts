@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -15,7 +15,7 @@ import type {
   ClientRealtimeMessage,
   ConversationMode,
   DebugInfo,
-  PartnerLanguage,
+  LanguageCode,
   ProxyErrorMessage,
   ProxyModeReadyMessage,
   ProxyStatusMessage,
@@ -37,8 +37,9 @@ const initialDebugInfo: DebugInfo = {
   microphone: "Stopped",
   audioContext: "unavailable",
   realtimeSession: "Disconnected",
-  direction: "other_to_chinese",
-  partnerLanguage: "ja",
+  direction: "conversation",
+  sourceLanguage: "zh",
+  targetLanguage: "ja",
   turnDetection: "server_vad",
   pushToTalk: "idle",
   audioForwarding: false,
@@ -113,7 +114,8 @@ function compactDebugPatch(message: ProxyStatusMessage): Partial<DebugInfo> {
   if (message.bailianWs) patch.bailianWs = message.bailianWs;
   if (message.realtimeSession) patch.realtimeSession = message.realtimeSession;
   if (message.direction) patch.direction = message.direction;
-  if (message.partnerLanguage) patch.partnerLanguage = message.partnerLanguage;
+  if (message.sourceLanguage) patch.sourceLanguage = message.sourceLanguage;
+  if (message.targetLanguage) patch.targetLanguage = message.targetLanguage;
   if (message.turnDetection) patch.turnDetection = message.turnDetection;
   if (typeof message.audioForwarding === "boolean") patch.audioForwarding = message.audioForwarding;
   if (message.lastServerEventType) patch.lastServerEventType = message.lastServerEventType;
@@ -130,27 +132,29 @@ export function useRealtimeTranslation() {
   const [currentTranslation, setCurrentTranslation] = useState("");
   const [currentMyTranscript, setCurrentMyTranscript] = useState("");
   const [finalMyTranscript, setFinalMyTranscript] = useState("");
-  const [currentJapaneseTranslation, setCurrentJapaneseTranslation] = useState("");
-  const [finalJapaneseTranslation, setFinalJapaneseTranslation] = useState("");
-  const [showLargeJapanese, setShowLargeJapanese] = useState(false);
-  const [partnerLanguage, setPartnerLanguageState] = useState<PartnerLanguage>("ja");
+  const [currentTargetTranslation, setCurrentTargetTranslation] = useState("");
+  const [finalTargetTranslation, setFinalTargetTranslation] = useState("");
+  const [showLargeTarget, setShowLargeTarget] = useState(false);
+  const [sourceLanguage, setSourceLanguageState] = useState<LanguageCode>("zh");
+  const [targetLanguage, setTargetLanguageState] = useState<LanguageCode>("ja");
   const [history, setHistory] = useState<TranslationHistoryItem[]>([]);
   const [errorMessage, setErrorMessage] = useState("");
   const [debugInfo, setDebugInfo] = useState<DebugInfo>(initialDebugInfo);
   const socketRef = useRef<WebSocket | null>(null);
   const audioForwardingRef = useRef(false);
-  const activeDirectionRef = useRef<TranslationDirection>("other_to_chinese");
-  const partnerLanguageRef = useRef<PartnerLanguage>("ja");
+  const activeDirectionRef = useRef<TranslationDirection>("conversation");
+  const sourceLanguageRef = useRef<LanguageCode>("zh");
+  const targetLanguageRef = useRef<LanguageCode>("ja");
   const turnDetectionRef = useRef<TurnDetectionMode>("server_vad");
   const conversationModeRef = useRef<ConversationMode>("LISTENING_TO_OTHER");
   const statusRef = useRef<AppStatus>("idle");
   const pendingSourceRef = useRef("");
   const pendingTranslationRef = useRef("");
   const pendingMyTranscriptRef = useRef("");
-  const pendingJapaneseTranslationRef = useRef("");
-  const japaneseAudioChunksRef = useRef<string[]>([]);
-  const japaneseTranscriptDoneRef = useRef(false);
-  const japaneseAudioDoneRef = useRef(false);
+  const pendingTargetTranslationRef = useRef("");
+  const targetAudioChunksRef = useRef<string[]>([]);
+  const targetTranscriptDoneRef = useRef(false);
+  const targetAudioDoneRef = useRef(false);
   const restoreListenTimerRef = useRef<number | null>(null);
   const pushToTalkTranslationTimerRef = useRef<number | null>(null);
   const playbackQueueStateRef = useRef<"empty" | "playing">("empty");
@@ -254,14 +258,14 @@ export function useRealtimeTranslation() {
     setCurrentTranslation("");
     setCurrentMyTranscript("");
     setFinalMyTranscript("");
-    setCurrentJapaneseTranslation("");
-    setFinalJapaneseTranslation("");
+    setCurrentTargetTranslation("");
+    setFinalTargetTranslation("");
     pendingSourceRef.current = "";
     pendingTranslationRef.current = "";
     pendingMyTranscriptRef.current = "";
-    pendingJapaneseTranslationRef.current = "";
-    japaneseAudioChunksRef.current = [];
-    japaneseTranscriptDoneRef.current = false;
+    pendingTargetTranslationRef.current = "";
+    targetAudioChunksRef.current = [];
+    targetTranscriptDoneRef.current = false;
     pttBufferedChunksRef.current = [];
     pttReleasePendingRef.current = false;
     pttCancelPendingRef.current = false;
@@ -269,7 +273,7 @@ export function useRealtimeTranslation() {
       window.clearTimeout(pushToTalkTranslationTimerRef.current);
       pushToTalkTranslationTimerRef.current = null;
     }
-    setShowLargeJapanese(false);
+    setShowLargeTarget(false);
   }, []);
 
   const clearFinishTimer = useCallback(() => {
@@ -298,14 +302,15 @@ export function useRealtimeTranslation() {
       sendControl({
         type: "browser.set_direction",
         direction,
-        partnerLanguage: partnerLanguageRef.current
+        sourceLanguage: sourceLanguageRef.current,
+        targetLanguage: targetLanguageRef.current
       });
     },
     [sendControl]
   );
 
-  const setPartnerLanguage = useCallback(
-    (nextLanguage: PartnerLanguage) => {
+  const setSourceLanguage = useCallback(
+    (nextLanguage: LanguageCode) => {
       const canChangeLanguage =
         statusRef.current === "idle" ||
         statusRef.current === "error" ||
@@ -315,17 +320,48 @@ export function useRealtimeTranslation() {
         return;
       }
 
-      partnerLanguageRef.current = nextLanguage;
-      setPartnerLanguageState(nextLanguage);
-      patchDebugInfo({ partnerLanguage: nextLanguage });
+      sourceLanguageRef.current = nextLanguage;
+      setSourceLanguageState(nextLanguage);
+      patchDebugInfo({ sourceLanguage: nextLanguage });
+      setCurrentSourceTranscript("");
+      setFinalSourceTranscript("");
+      setCurrentTranslation("");
       setCurrentMyTranscript("");
       setFinalMyTranscript("");
-      setCurrentJapaneseTranslation("");
-      setFinalJapaneseTranslation("");
-      setShowLargeJapanese(false);
+      setCurrentTargetTranslation("");
+      setFinalTargetTranslation("");
+      setShowLargeTarget(false);
+      pendingSourceRef.current = "";
+      pendingTranslationRef.current = "";
       pendingMyTranscriptRef.current = "";
-      pendingJapaneseTranslationRef.current = "";
-      japaneseAudioChunksRef.current = [];
+      pendingTargetTranslationRef.current = "";
+      targetAudioChunksRef.current = [];
+    },
+    [patchDebugInfo]
+  );
+
+  const setTargetLanguage = useCallback(
+    (nextLanguage: LanguageCode) => {
+      const canChangeLanguage =
+        statusRef.current === "idle" ||
+        statusRef.current === "error" ||
+        conversationModeRef.current === "LISTENING_TO_OTHER";
+
+      if (!canChangeLanguage) {
+        return;
+      }
+
+      targetLanguageRef.current = nextLanguage;
+      setTargetLanguageState(nextLanguage);
+      patchDebugInfo({ targetLanguage: nextLanguage });
+      setCurrentMyTranscript("");
+      setFinalMyTranscript("");
+      setCurrentTargetTranslation("");
+      setFinalTargetTranslation("");
+      setShowLargeTarget(false);
+      pendingMyTranscriptRef.current = "";
+      pendingTargetTranslationRef.current = "";
+      targetAudioChunksRef.current = [];
     },
     [patchDebugInfo]
   );
@@ -338,16 +374,16 @@ export function useRealtimeTranslation() {
     clearRestoreListenTimer();
     clearPushToTalkTranslationTimer();
     setAudioForwarding(false);
-    activeDirectionRef.current = "other_to_chinese";
+    activeDirectionRef.current = "conversation";
     turnDetectionRef.current = "server_vad";
     updateConversationMode("RESTORING_LISTEN_MODE");
     setPushToTalkState("idle");
     patchDebugInfo({
-      direction: "other_to_chinese",
+      direction: "conversation",
       turnDetection: "server_vad",
       pushToTalk: "idle"
     });
-    requestDirection("other_to_chinese");
+    requestDirection("conversation");
   }, [
     clearPushToTalkTranslationTimer,
     clearRestoreListenTimer,
@@ -361,10 +397,10 @@ export function useRealtimeTranslation() {
     clearPushToTalkTranslationTimer();
     pushToTalkTranslationTimerRef.current = window.setTimeout(() => {
       if (
-        activeDirectionRef.current === "chinese_to_partner" &&
-        conversationModeRef.current === "TRANSLATING_TO_JAPANESE"
+        activeDirectionRef.current === "push_to_talk" &&
+        conversationModeRef.current === "TRANSLATING"
       ) {
-        setErrorMessage("这次中文语音没有完成翻译，请再按住说一次。");
+        setErrorMessage("这次语音没有完成翻译，请再按住说一次。");
         restoreListenMode();
       }
     }, PUSH_TO_TALK_TRANSLATION_TIMEOUT_MS);
@@ -377,9 +413,9 @@ export function useRealtimeTranslation() {
         await playback.flushPendingAppends();
 
       if (
-        activeDirectionRef.current === "chinese_to_partner" &&
-        japaneseTranscriptDoneRef.current &&
-        japaneseAudioDoneRef.current &&
+        activeDirectionRef.current === "push_to_talk" &&
+        targetTranscriptDoneRef.current &&
+        targetAudioDoneRef.current &&
         playbackQueueStateRef.current === "empty"
       ) {
         restoreListenMode();
@@ -397,7 +433,7 @@ export function useRealtimeTranslation() {
       return;
     }
 
-    updateConversationMode("TRANSLATING_TO_JAPANESE");
+    updateConversationMode("TRANSLATING");
     setPushToTalkState("translating");
     patchDebugInfo({ pushToTalk: "translating" });
     schedulePushToTalkTranslationTimeout();
@@ -407,13 +443,13 @@ export function useRealtimeTranslation() {
   useEffect(() => {
     playbackQueueEmptyRef.current = () => {
       if (
-        activeDirectionRef.current === "chinese_to_partner" &&
-        japaneseTranscriptDoneRef.current &&
-        japaneseAudioDoneRef.current &&
+        activeDirectionRef.current === "push_to_talk" &&
+        targetTranscriptDoneRef.current &&
+        targetAudioDoneRef.current &&
         playbackQueueStateRef.current === "empty" &&
-        (conversationModeRef.current === "PLAYING_JAPANESE" ||
-          conversationModeRef.current === "TRANSLATING_TO_JAPANESE" ||
-          conversationModeRef.current === "COMMITTING_CHINESE")
+        (conversationModeRef.current === "PLAYING_TARGET" ||
+          conversationModeRef.current === "TRANSLATING" ||
+          conversationModeRef.current === "COMMITTING_SOURCE")
       ) {
         scheduleRestoreListenMode();
       }
@@ -471,7 +507,7 @@ export function useRealtimeTranslation() {
       microphone: "Stopped",
       audioForwarding: false
     });
-    activeDirectionRef.current = "other_to_chinese";
+    activeDirectionRef.current = "conversation";
     turnDetectionRef.current = "server_vad";
     updateConversationMode("LISTENING_TO_OTHER");
     updateStatus("idle");
@@ -490,16 +526,19 @@ export function useRealtimeTranslation() {
   const handleModeReady = useCallback(
     (message: ProxyModeReadyMessage) => {
       activeDirectionRef.current = message.direction;
-      partnerLanguageRef.current = message.partnerLanguage;
-      setPartnerLanguageState(message.partnerLanguage);
+      sourceLanguageRef.current = message.sourceLanguage;
+      setSourceLanguageState(message.sourceLanguage);
+      targetLanguageRef.current = message.targetLanguage;
+      setTargetLanguageState(message.targetLanguage);
       turnDetectionRef.current = message.turnDetection;
       patchDebugInfo({
         direction: message.direction,
-        partnerLanguage: message.partnerLanguage,
+        sourceLanguage: message.sourceLanguage,
+        targetLanguage: message.targetLanguage,
         turnDetection: message.turnDetection
       });
 
-      if (message.direction === "other_to_chinese") {
+      if (message.direction === "conversation") {
         clearPushToTalkTranslationTimer();
         setAudioForwarding(true);
         updateConversationMode("LISTENING_TO_OTHER");
@@ -512,16 +551,16 @@ export function useRealtimeTranslation() {
 
       clearRestoreListenTimer();
       clearPushToTalkTranslationTimer();
-      japaneseTranscriptDoneRef.current = false;
-      japaneseAudioDoneRef.current = false;
-      japaneseAudioChunksRef.current = [];
+      targetTranscriptDoneRef.current = false;
+      targetAudioDoneRef.current = false;
+      targetAudioChunksRef.current = [];
       setCurrentMyTranscript("");
-      setCurrentJapaneseTranslation("");
-      setFinalJapaneseTranslation("");
-      setShowLargeJapanese(false);
+      setCurrentTargetTranslation("");
+      setFinalTargetTranslation("");
+      setShowLargeTarget(false);
       setAudioForwarding(true);
       setPushToTalkState("pressed");
-      updateConversationMode("SPEAKING_CHINESE");
+      updateConversationMode("SOURCE_SPEAKING");
       updateStatus("listening");
       patchDebugInfo({
         pushToTalk: "pressed"
@@ -565,25 +604,25 @@ export function useRealtimeTranslation() {
 
       switch (event.type) {
         case "input_audio_buffer.speech_started":
-          if (activeDirectionRef.current === "other_to_chinese") {
+          if (activeDirectionRef.current === "conversation") {
             updateStatus("listening");
           } else {
             clearPushToTalkTranslationTimer();
             setPushToTalkState("pressed");
-            updateConversationMode("SPEAKING_CHINESE");
+            updateConversationMode("SOURCE_SPEAKING");
             updateStatus("listening");
             patchDebugInfo({ pushToTalk: "pressed" });
           }
           break;
         case "input_audio_buffer.speech_stopped":
-          if (activeDirectionRef.current === "other_to_chinese") {
+          if (activeDirectionRef.current === "conversation") {
             updateStatus("translating");
           }
           break;
         case "input_audio_buffer.committed":
-          if (activeDirectionRef.current === "chinese_to_partner") {
+          if (activeDirectionRef.current === "push_to_talk") {
             setPushToTalkState("translating");
-            updateConversationMode("TRANSLATING_TO_JAPANESE");
+            updateConversationMode("TRANSLATING");
             updateStatus("translating");
             patchDebugInfo({ pushToTalk: "translating" });
           } else {
@@ -591,7 +630,7 @@ export function useRealtimeTranslation() {
           }
           break;
         case "conversation.item.input_audio_transcription.text": {
-          if (activeDirectionRef.current === "chinese_to_partner") {
+          if (activeDirectionRef.current === "push_to_talk") {
             pendingMyTranscriptRef.current = mergeStreamingText(pendingMyTranscriptRef.current, event);
             setCurrentMyTranscript(pendingMyTranscriptRef.current);
           } else {
@@ -603,7 +642,7 @@ export function useRealtimeTranslation() {
         case "conversation.item.input_audio_transcription.completed": {
           const text = getFinalText(event);
 
-          if (activeDirectionRef.current === "chinese_to_partner") {
+          if (activeDirectionRef.current === "push_to_talk") {
             pendingMyTranscriptRef.current = text || pendingMyTranscriptRef.current;
             setFinalMyTranscript(pendingMyTranscriptRef.current);
             setCurrentMyTranscript(pendingMyTranscriptRef.current);
@@ -615,21 +654,21 @@ export function useRealtimeTranslation() {
           break;
         }
         case "conversation.item.input_audio_transcription.failed":
-          if (activeDirectionRef.current === "chinese_to_partner") {
+          if (activeDirectionRef.current === "push_to_talk") {
             clearPushToTalkTranslationTimer();
-            setErrorMessage("这次中文语音识别失败，请重新按住说中文。");
+            setErrorMessage("这次语音识别失败，请重新按住说一次。");
             restoreListenMode();
           } else {
             setErrorMessage("语音识别失败，但同传会继续监听。");
           }
           break;
         case "response.audio_transcript.text": {
-          if (activeDirectionRef.current === "chinese_to_partner") {
+          if (activeDirectionRef.current === "push_to_talk") {
             clearPushToTalkTranslationTimer();
-            pendingJapaneseTranslationRef.current = mergeStreamingText(pendingJapaneseTranslationRef.current, event);
-            setCurrentJapaneseTranslation(pendingJapaneseTranslationRef.current);
+            pendingTargetTranslationRef.current = mergeStreamingText(pendingTargetTranslationRef.current, event);
+            setCurrentTargetTranslation(pendingTargetTranslationRef.current);
             setPushToTalkState("translating");
-            updateConversationMode("TRANSLATING_TO_JAPANESE");
+            updateConversationMode("TRANSLATING");
           } else {
             pendingTranslationRef.current = mergeStreamingText(pendingTranslationRef.current, event);
             setCurrentTranslation(pendingTranslationRef.current);
@@ -640,19 +679,19 @@ export function useRealtimeTranslation() {
         case "response.audio_transcript.done": {
           const text = getFinalText(event);
 
-          if (activeDirectionRef.current === "chinese_to_partner") {
+          if (activeDirectionRef.current === "push_to_talk") {
             clearPushToTalkTranslationTimer();
-            pendingJapaneseTranslationRef.current = text || pendingJapaneseTranslationRef.current;
-            japaneseTranscriptDoneRef.current = true;
-            setFinalJapaneseTranslation(pendingJapaneseTranslationRef.current);
-            setCurrentJapaneseTranslation(pendingJapaneseTranslationRef.current);
-            addHistoryItem("chinese_to_partner", pendingMyTranscriptRef.current, pendingJapaneseTranslationRef.current);
+            pendingTargetTranslationRef.current = text || pendingTargetTranslationRef.current;
+            targetTranscriptDoneRef.current = true;
+            setFinalTargetTranslation(pendingTargetTranslationRef.current);
+            setCurrentTargetTranslation(pendingTargetTranslationRef.current);
+            addHistoryItem("push_to_talk", pendingMyTranscriptRef.current, pendingTargetTranslationRef.current);
 
             scheduleRestoreListenMode();
           } else {
             pendingTranslationRef.current = text || pendingTranslationRef.current;
             setCurrentTranslation(pendingTranslationRef.current);
-            addHistoryItem("other_to_chinese", pendingSourceRef.current, pendingTranslationRef.current);
+            addHistoryItem("conversation", pendingSourceRef.current, pendingTranslationRef.current);
             pendingSourceRef.current = "";
             pendingTranslationRef.current = "";
           }
@@ -663,11 +702,11 @@ export function useRealtimeTranslation() {
           const audioDelta = getAudioDelta(event);
 
           if (audioDelta) {
-            if (activeDirectionRef.current === "chinese_to_partner") {
+            if (activeDirectionRef.current === "push_to_talk") {
               clearPushToTalkTranslationTimer();
-              japaneseAudioChunksRef.current.push(audioDelta);
+              targetAudioChunksRef.current.push(audioDelta);
               setPushToTalkState("playing");
-              updateConversationMode("PLAYING_JAPANESE");
+              updateConversationMode("PLAYING_TARGET");
               patchDebugInfo({ pushToTalk: "playing" });
             } else {
               updateStatus(playback.muted ? "translating" : "playing");
@@ -678,17 +717,17 @@ export function useRealtimeTranslation() {
           break;
         }
         case "response.audio.done":
-          if (activeDirectionRef.current === "chinese_to_partner") {
-            japaneseAudioDoneRef.current = true;
+          if (activeDirectionRef.current === "push_to_talk") {
+            targetAudioDoneRef.current = true;
             scheduleRestoreListenMode();
           }
           break;
         case "response.done":
-          if (activeDirectionRef.current === "chinese_to_partner") {
+          if (activeDirectionRef.current === "push_to_talk") {
             clearPushToTalkTranslationTimer();
-            japaneseAudioDoneRef.current = true;
-            if (!japaneseTranscriptDoneRef.current) {
-              japaneseTranscriptDoneRef.current = true;
+            targetAudioDoneRef.current = true;
+            if (!targetTranscriptDoneRef.current) {
+              targetTranscriptDoneRef.current = true;
             }
             scheduleRestoreListenMode();
           }
@@ -736,9 +775,9 @@ export function useRealtimeTranslation() {
         onAudioChunk: (chunk) => {
           const socket = socketRef.current;
           const isPushToTalkPreparing =
-            activeDirectionRef.current === "chinese_to_partner" &&
+            activeDirectionRef.current === "push_to_talk" &&
             (conversationModeRef.current === "PREPARING_TO_SPEAK" ||
-              conversationModeRef.current === "COMMITTING_CHINESE") &&
+              conversationModeRef.current === "COMMITTING_SOURCE") &&
             !audioForwardingRef.current;
 
           if (isPushToTalkPreparing) {
@@ -751,7 +790,7 @@ export function useRealtimeTranslation() {
           }
 
           if (audioForwardingRef.current && socket?.readyState === WebSocket.OPEN) {
-            if (activeDirectionRef.current === "chinese_to_partner") {
+            if (activeDirectionRef.current === "push_to_talk") {
               pttAudioMsRef.current += countPcmDuration(chunk);
             }
 
@@ -770,7 +809,7 @@ export function useRealtimeTranslation() {
         browserWs: "Connecting",
         bailianWs: "Connecting",
         realtimeSession: "Connecting",
-        direction: "other_to_chinese",
+        direction: "conversation",
         turnDetection: "server_vad"
       });
 
@@ -921,7 +960,7 @@ export function useRealtimeTranslation() {
 
             if (isProxyModeReadyMessage(message)) {
               handleModeReady(message);
-              if (!waitForInitialReady && message.direction === "other_to_chinese") {
+              if (!waitForInitialReady && message.direction === "conversation") {
                 reconnectAttempts = 0;
                 setErrorMessage("");
               }
@@ -964,47 +1003,50 @@ export function useRealtimeTranslation() {
     if (
       statusRef.current === "idle" ||
       conversationModeRef.current !== "LISTENING_TO_OTHER" ||
-      activeDirectionRef.current !== "other_to_chinese"
+      activeDirectionRef.current !== "conversation"
     ) {
       return;
     }
 
     setErrorMessage("");
     setAudioForwarding(false);
-    activeDirectionRef.current = "chinese_to_partner";
-    partnerLanguageRef.current = partnerLanguage;
+    activeDirectionRef.current = "push_to_talk";
+    sourceLanguageRef.current = sourceLanguage;
+    targetLanguageRef.current = targetLanguage;
     turnDetectionRef.current = "manual";
     pttStartedAtRef.current = performance.now();
     pttAudioMsRef.current = 0;
     pttBufferedChunksRef.current = [];
     pttReleasePendingRef.current = false;
     pttCancelPendingRef.current = false;
-    japaneseAudioDoneRef.current = false;
+    targetAudioDoneRef.current = false;
     clearPushToTalkTranslationTimer();
     clearRestoreListenTimer();
     updateConversationMode("PREPARING_TO_SPEAK");
     setPushToTalkState("pressed");
     patchDebugInfo({
-      direction: "chinese_to_partner",
-      partnerLanguage,
+      direction: "push_to_talk",
+      sourceLanguage,
+      targetLanguage,
       turnDetection: "manual",
       pushToTalk: "pressed"
     });
-    requestDirection("chinese_to_partner");
+    requestDirection("push_to_talk");
   }, [
     clearPushToTalkTranslationTimer,
     clearRestoreListenTimer,
-    partnerLanguage,
     patchDebugInfo,
     requestDirection,
     setAudioForwarding,
+    sourceLanguage,
+    targetLanguage,
     updateConversationMode
   ]);
 
   const endPushToTalk = useCallback(async () => {
     if (
       conversationModeRef.current !== "PREPARING_TO_SPEAK" &&
-      conversationModeRef.current !== "SPEAKING_CHINESE"
+      conversationModeRef.current !== "SOURCE_SPEAKING"
     ) {
       return;
     }
@@ -1013,7 +1055,7 @@ export function useRealtimeTranslation() {
 
     if (conversationModeRef.current === "PREPARING_TO_SPEAK") {
       pttReleasePendingRef.current = true;
-      updateConversationMode("TRANSLATING_TO_JAPANESE");
+      updateConversationMode("TRANSLATING");
       setPushToTalkState("translating");
       patchDebugInfo({ pushToTalk: "translating" });
       schedulePushToTalkTranslationTimeout();
@@ -1034,7 +1076,7 @@ export function useRealtimeTranslation() {
   const cancelPushToTalk = useCallback(() => {
     if (
       conversationModeRef.current !== "PREPARING_TO_SPEAK" &&
-      conversationModeRef.current !== "SPEAKING_CHINESE"
+      conversationModeRef.current !== "SOURCE_SPEAKING"
     ) {
       return;
     }
@@ -1057,11 +1099,11 @@ export function useRealtimeTranslation() {
     resetCurrentCaptions();
     setErrorMessage("");
     setAudioForwarding(false);
-    activeDirectionRef.current = "other_to_chinese";
+    activeDirectionRef.current = "conversation";
     turnDetectionRef.current = "server_vad";
     setPushToTalkState("idle");
     patchDebugInfo({
-      direction: "other_to_chinese",
+      direction: "conversation",
       turnDetection: "server_vad",
       pushToTalk: "idle",
       audioForwarding: false
@@ -1073,7 +1115,7 @@ export function useRealtimeTranslation() {
     }
 
     updateConversationMode("RESTORING_LISTEN_MODE");
-    requestDirection("other_to_chinese");
+    requestDirection("conversation");
   }, [
     clearFinishTimer,
     clearPushToTalkTranslationTimer,
@@ -1127,14 +1169,14 @@ export function useRealtimeTranslation() {
     });
   }, [playback]);
 
-  const replayJapanese = useCallback(async () => {
-    if (japaneseAudioChunksRef.current.length === 0) {
+  const replayTarget = useCallback(async () => {
+    if (targetAudioChunksRef.current.length === 0) {
       setErrorMessage("当前没有可重新播放的译文语音。");
       return;
     }
 
     playback.clearQueue();
-    for (const chunk of japaneseAudioChunksRef.current) {
+    for (const chunk of targetAudioChunksRef.current) {
       await playback.appendBase64Pcm(chunk, true);
     }
   }, [playback]);
@@ -1146,14 +1188,14 @@ export function useRealtimeTranslation() {
   );
   const isPushToTalkBusy = useMemo(
     () =>
-      conversationMode === "COMMITTING_CHINESE" ||
-      conversationMode === "TRANSLATING_TO_JAPANESE" ||
-      conversationMode === "PLAYING_JAPANESE" ||
+      conversationMode === "COMMITTING_SOURCE" ||
+      conversationMode === "TRANSLATING" ||
+      conversationMode === "PLAYING_TARGET" ||
       conversationMode === "RESTORING_LISTEN_MODE",
     [conversationMode]
   );
   const isPushToTalkActive = useMemo(
-    () => conversationMode === "PREPARING_TO_SPEAK" || conversationMode === "SPEAKING_CHINESE",
+    () => conversationMode === "PREPARING_TO_SPEAK" || conversationMode === "SOURCE_SPEAKING",
     [conversationMode]
   );
 
@@ -1165,15 +1207,16 @@ export function useRealtimeTranslation() {
     canPushToTalk,
     isPushToTalkActive,
     isPushToTalkBusy,
-    partnerLanguage,
+    sourceLanguage,
+    targetLanguage,
     currentSourceTranscript,
     finalSourceTranscript,
     currentTranslation,
     currentMyTranscript,
     finalMyTranscript,
-    currentJapaneseTranslation,
-    finalJapaneseTranslation,
-    showLargeJapanese,
+    currentTargetTranslation,
+    finalTargetTranslation,
+    showLargeTarget,
     history,
     errorMessage,
     debugInfo: {
@@ -1192,10 +1235,11 @@ export function useRealtimeTranslation() {
     recoverListening,
     clearCaptions,
     toggleMuted,
-    setPartnerLanguage,
-    replayJapanese,
-    showLargeJapaneseView: () => setShowLargeJapanese(true),
-    hideLargeJapaneseView: () => setShowLargeJapanese(false)
+    setSourceLanguage,
+    setTargetLanguage,
+    replayTarget,
+    showLargeTargetView: () => setShowLargeTarget(true),
+    hideLargeTargetView: () => setShowLargeTarget(false)
   };
 }
 

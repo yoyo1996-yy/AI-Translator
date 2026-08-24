@@ -1,13 +1,14 @@
 import type {
   BailianServerEvent,
-  PartnerLanguage,
+  LanguageCode,
   TranslationDirection,
   TurnDetectionMode
 } from "../../types/realtime";
 
 export type RealtimeProviderSessionOptions = {
   direction: TranslationDirection;
-  partnerLanguage: PartnerLanguage;
+  sourceLanguage: LanguageCode;
+  targetLanguage: LanguageCode;
   turnDetection: TurnDetectionMode;
   corpusPhrases: Record<string, string>;
 };

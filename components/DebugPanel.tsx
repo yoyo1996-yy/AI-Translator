@@ -39,8 +39,12 @@ export function DebugPanel({ debugInfo }: { debugInfo: DebugInfo }) {
           <dd>{debugInfo.direction}</dd>
         </div>
         <div>
-          <dt>Partner Language</dt>
-          <dd>{debugInfo.partnerLanguage}</dd>
+          <dt>Source Language</dt>
+          <dd>{debugInfo.sourceLanguage}</dd>
+        </div>
+        <div>
+          <dt>Target Language</dt>
+          <dd>{debugInfo.targetLanguage}</dd>
         </div>
         <div>
           <dt>Turn Detection</dt>

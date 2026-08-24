@@ -70,9 +70,26 @@ img {
   font-size: 16px;
 }
 
+.language-selector-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.language-picker {
+  display: grid;
+  gap: 6px;
+}
+
+.language-picker h2 {
+  margin: 0;
+  color: #53635a;
+  font-size: 13px;
+  font-weight: 800;
+}
+
 .language-switch {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(82px, 1fr));
   gap: 6px;
   border: 1px solid #d9e0db;
   border-radius: 8px;
@@ -366,11 +383,11 @@ img {
   font-size: 12px;
 }
 
-.history-direction-other_to_chinese {
+.history-direction-conversation {
   background: #116045;
 }
 
-.history-direction-chinese_to_partner {
+.history-direction-push_to_talk {
   background: #70501b;
 }
 
@@ -559,20 +576,20 @@ img {
   opacity: 0.48;
 }
 
-.japanese-output {
+.target-output {
   border-color: #d9b45f;
   background: #fffdf7;
 }
 
-.japanese-actions {
+.target-actions {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
   margin-top: 16px;
 }
 
-.japanese-actions button,
-.large-japanese-actions button {
+.target-actions button,
+.large-target-actions button {
   min-height: 44px;
   border: 1px solid #cad4ce;
   border-radius: 8px;
@@ -582,7 +599,7 @@ img {
   font-weight: 700;
 }
 
-.large-japanese-view {
+.large-target-view {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
@@ -592,13 +609,13 @@ img {
   padding: 18px;
 }
 
-.large-japanese-actions {
+.large-target-actions {
   display: flex;
   justify-content: space-between;
   gap: 12px;
 }
 
-.large-japanese-actions button {
+.large-target-actions button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -606,7 +623,7 @@ img {
   min-width: 112px;
 }
 
-.large-japanese-view p {
+.large-target-view p {
   flex: 1;
   display: grid;
   place-items: center;

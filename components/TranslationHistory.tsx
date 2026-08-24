@@ -1,4 +1,4 @@
-﻿import type { TranslationHistoryItem } from "../types/realtime";
+import type { TranslationHistoryItem } from "../types/realtime";
 
 export function TranslationHistory({ items }: { items: TranslationHistoryItem[] }) {
   return (
@@ -11,7 +11,7 @@ export function TranslationHistory({ items }: { items: TranslationHistoryItem[] 
           {items.map((item) => (
             <li key={item.id} className="history-item">
               <span className={`history-direction history-direction-${item.direction}`}>
-                {item.direction === "chinese_to_partner" ? "我" : "对方"}
+                {item.direction === "push_to_talk" ? "Push-To-Talk" : "Conversation"}
               </span>
               <p className="history-source">{item.source || "未返回原文"}</p>
               <p className="history-translation">{item.translation || "未返回译文"}</p>

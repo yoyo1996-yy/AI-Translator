@@ -3,19 +3,25 @@
 import { ConnectionStatus } from "./ConnectionStatus";
 import { Controls } from "./Controls";
 import { DebugPanel } from "./DebugPanel";
-import { LargeJapaneseView } from "./LargeJapaneseView";
+import { LargeTargetView } from "./LargeTargetView";
 import { TranscriptPanel } from "./TranscriptPanel";
 import { TranslationHistory } from "./TranslationHistory";
 import { useAudioDevices } from "../hooks/useAudioDevices";
 import { useRealtimeTranslation } from "../hooks/useRealtimeTranslation";
-import type { AppStatus, ConversationMode } from "../types/realtime";
+import {
+  getLanguageLabel,
+  SOURCE_LANGUAGE_OPTIONS,
+  TARGET_LANGUAGE_OPTIONS
+} from "../lib/config/languages";
+import type { AppStatus, ConversationMode, LanguageCode } from "../types/realtime";
 
 type OperationStatusTone = "idle" | "listen" | "speak" | "work" | "play" | "error";
 
 function getOperationStatus(
   status: AppStatus,
   conversationMode: ConversationMode,
-  partnerLanguageName: string,
+  sourceLanguageName: string,
+  targetLanguageName: string,
   muted: boolean
 ): { label: string; detail: string; tone: OperationStatusTone } {
   if (status === "error" || conversationMode === "ERROR") {
@@ -29,7 +35,7 @@ function getOperationStatus(
   if (status === "idle") {
     return {
       label: "未开始",
-      detail: `当前目标语言：${partnerLanguageName}`,
+      detail: `${sourceLanguageName} → ${targetLanguageName}`,
       tone: "idle"
     };
   }
@@ -50,25 +56,25 @@ function getOperationStatus(
     };
   }
 
-  if (conversationMode === "PREPARING_TO_SPEAK" || conversationMode === "SPEAKING_CHINESE") {
+  if (conversationMode === "PREPARING_TO_SPEAK" || conversationMode === "SOURCE_SPEAKING") {
     return {
-      label: "正在录中文",
-      detail: `松开后翻译成${partnerLanguageName}。`,
+      label: "正在录制源语言",
+      detail: `松开后翻译成 ${targetLanguageName}。`,
       tone: "speak"
     };
   }
 
-  if (conversationMode === "TRANSLATING_TO_JAPANESE" || conversationMode === "COMMITTING_CHINESE") {
+  if (conversationMode === "TRANSLATING" || conversationMode === "COMMITTING_SOURCE") {
     return {
-      label: `正在翻译成${partnerLanguageName}`,
+      label: `正在翻译成 ${targetLanguageName}`,
       detail: "等待字幕和语音返回。",
       tone: "work"
     };
   }
 
-  if (conversationMode === "PLAYING_JAPANESE") {
+  if (conversationMode === "PLAYING_TARGET") {
     return {
-      label: muted ? "译文语音已静音" : `正在播放${partnerLanguageName}`,
+      label: muted ? "译文语音已静音" : `正在播放 ${targetLanguageName}`,
       detail: "当前句播放完成后恢复听译。",
       tone: "play"
     };
@@ -77,7 +83,7 @@ function getOperationStatus(
   if (conversationMode === "RESTORING_LISTEN_MODE") {
     return {
       label: "正在恢复听译",
-      detail: "切回对方发言监听。",
+      detail: "切回 Conversation Mode。",
       tone: "work"
     };
   }
@@ -91,46 +97,80 @@ function getOperationStatus(
   }
 
   return {
-    label: "正在听对方",
-    detail: `对方发言 → 中文，你说中文 → ${partnerLanguageName}。`,
+    label: "Conversation Mode",
+    detail: `${sourceLanguageName} → ${targetLanguageName}`,
     tone: "listen"
   };
+}
+
+function LanguagePicker({
+  title,
+  value,
+  options,
+  disabled,
+  onChange
+}: {
+  title: string;
+  value: LanguageCode;
+  options: { code: LanguageCode; label: string }[];
+  disabled: boolean;
+  onChange: (languageCode: LanguageCode) => void;
+}) {
+  return (
+    <section className="language-picker" aria-label={title}>
+      <h2>{title}</h2>
+      <div className="language-switch" role="group">
+        {options.map((option) => (
+          <button
+            key={option.code}
+            type="button"
+            className={value === option.code ? "active" : ""}
+            disabled={disabled}
+            onClick={() => onChange(option.code)}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+    </section>
+  );
 }
 
 export function TranslatorApp() {
   const realtime = useRealtimeTranslation();
   const audioDevices = useAudioDevices(realtime.debugInfo.microphone === "Active");
-  const partnerText = realtime.currentJapaneseTranslation || realtime.finalJapaneseTranslation;
-  const myTranscript = realtime.currentMyTranscript || realtime.finalMyTranscript;
-  const partnerLanguageName = realtime.partnerLanguage === "ja" ? "日语" : "英语";
-  const partnerNativeName = realtime.partnerLanguage === "ja" ? "日本語" : "English";
+  const targetText = realtime.currentTargetTranslation || realtime.finalTargetTranslation;
+  const sourcePushToTalkText = realtime.currentMyTranscript || realtime.finalMyTranscript;
+  const sourceLanguageName = getLanguageLabel(realtime.sourceLanguage);
+  const targetLanguageName = getLanguageLabel(realtime.targetLanguage);
   const operationStatus = getOperationStatus(
     realtime.status,
     realtime.conversationMode,
-    partnerLanguageName,
+    sourceLanguageName,
+    targetLanguageName,
     realtime.muted
   );
-  const canChangePartnerLanguage =
+  const canChangeLanguage =
     realtime.status === "idle" ||
     realtime.status === "error" ||
     realtime.conversationMode === "LISTENING_TO_OTHER";
   const pushToTalkLabel =
-    realtime.conversationMode === "PREPARING_TO_SPEAK" || realtime.conversationMode === "SPEAKING_CHINESE"
-        ? "松开结束并翻译"
-        : realtime.conversationMode === "COMMITTING_CHINESE" || realtime.conversationMode === "TRANSLATING_TO_JAPANESE"
-        ? `正在翻译成${partnerLanguageName}……`
-        : realtime.conversationMode === "PLAYING_JAPANESE"
-          ? `正在播放${partnerLanguageName}……`
+    realtime.conversationMode === "PREPARING_TO_SPEAK" || realtime.conversationMode === "SOURCE_SPEAKING"
+      ? "松开结束并翻译"
+      : realtime.conversationMode === "COMMITTING_SOURCE" || realtime.conversationMode === "TRANSLATING"
+        ? `正在翻译成 ${targetLanguageName}……`
+        : realtime.conversationMode === "PLAYING_TARGET"
+          ? `正在播放 ${targetLanguageName}……`
           : realtime.conversationMode === "RESTORING_LISTEN_MODE"
             ? "正在恢复听译……"
-            : "按住说中文";
+            : "按住说话";
 
-  if (realtime.showLargeJapanese && realtime.finalJapaneseTranslation) {
+  if (realtime.showLargeTarget && realtime.finalTargetTranslation) {
     return (
-      <LargeJapaneseView
-        text={realtime.finalJapaneseTranslation}
-        onBack={realtime.hideLargeJapaneseView}
-        onReplay={realtime.replayJapanese}
+      <LargeTargetView
+        text={realtime.finalTargetTranslation}
+        onBack={realtime.hideLargeTargetView}
+        onReplay={realtime.replayTarget}
       />
     );
   }
@@ -141,28 +181,26 @@ export function TranslatorApp() {
         <header className="app-header">
           <div>
             <h1>AI 随身同传</h1>
-            <p>中文 ⇄ {partnerNativeName}</p>
+            <p>Source Language ⇄ Target Language</p>
           </div>
           <ConnectionStatus status={realtime.status} />
         </header>
 
-        <div className="language-switch" role="group" aria-label="选择对方语言">
-          <button
-            type="button"
-            className={realtime.partnerLanguage === "ja" ? "active" : ""}
-            disabled={!canChangePartnerLanguage}
-            onClick={() => realtime.setPartnerLanguage("ja")}
-          >
-            日本語
-          </button>
-          <button
-            type="button"
-            className={realtime.partnerLanguage === "en" ? "active" : ""}
-            disabled={!canChangePartnerLanguage}
-            onClick={() => realtime.setPartnerLanguage("en")}
-          >
-            English
-          </button>
+        <div className="language-selector-grid">
+          <LanguagePicker
+            title="Source Language"
+            value={realtime.sourceLanguage}
+            options={SOURCE_LANGUAGE_OPTIONS}
+            disabled={!canChangeLanguage}
+            onChange={realtime.setSourceLanguage}
+          />
+          <LanguagePicker
+            title="Target Language"
+            value={realtime.targetLanguage}
+            options={TARGET_LANGUAGE_OPTIONS}
+            disabled={!canChangeLanguage}
+            onChange={realtime.setTargetLanguage}
+          />
         </div>
 
         <section className={`operation-status operation-status-${operationStatus.tone}`} aria-live="polite">
@@ -195,33 +233,38 @@ export function TranslatorApp() {
 
         <div className="transcript-stack">
           <TranscriptPanel
-            title="对方说"
-            language="原语言"
+            title="Conversation Mode"
+            language="Source Language"
             text={realtime.currentSourceTranscript || realtime.finalSourceTranscript}
-            placeholder="等待对方说话..."
+            placeholder="Waiting for source speech..."
           />
           <TranscriptPanel
-            title="中文"
-            language="中文翻译"
+            title="Target Language"
+            language="Translated Subtitles"
             text={realtime.currentTranslation}
-            placeholder="翻译会实时显示在这里。"
+            placeholder="Translated subtitles will appear here."
             emphasized
           />
-          <TranscriptPanel title="我说" language="中文" text={myTranscript} placeholder="按住底部按钮后开始说中文。" />
-          <section className="transcript-card japanese-output" aria-label={partnerLanguageName}>
+          <TranscriptPanel
+            title="Push-To-Talk Mode"
+            language="Source Language"
+            text={sourcePushToTalkText}
+            placeholder="Hold the talk button and speak."
+          />
+          <section className="transcript-card target-output" aria-label="Target Language Output">
             <div className="transcript-heading">
-              <h2>{partnerLanguageName}</h2>
-              <span>给对方听/看</span>
+              <h2>Target Language</h2>
+              <span>Translated speech/text</span>
             </div>
             <p className="transcript-text transcript-text-large">
-              {partnerText || `你的${partnerLanguageName}翻译会显示在这里。`}
+              {targetText || `Your ${targetLanguageName} translation will appear here.`}
             </p>
-            {realtime.finalJapaneseTranslation ? (
-              <div className="japanese-actions">
-                <button type="button" onClick={realtime.showLargeJapaneseView}>
+            {realtime.finalTargetTranslation ? (
+              <div className="target-actions">
+                <button type="button" onClick={realtime.showLargeTargetView}>
                   放大给对方看
                 </button>
-                <button type="button" onClick={realtime.replayJapanese}>
+                <button type="button" onClick={realtime.replayTarget}>
                   重新播放
                 </button>
               </div>

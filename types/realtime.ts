@@ -9,18 +9,18 @@ export type AppStatus =
   | "stopping"
   | "error";
 
-export type PartnerLanguage = "ja" | "en";
-export type TranslationDirection = "other_to_chinese" | "chinese_to_partner";
+export type LanguageCode = string;
+export type TranslationDirection = "conversation" | "push_to_talk";
 export type TurnDetectionMode = "server_vad" | "manual";
 export type PushToTalkState = "idle" | "pressed" | "translating" | "playing";
 
 export type ConversationMode =
   | "LISTENING_TO_OTHER"
   | "PREPARING_TO_SPEAK"
-  | "SPEAKING_CHINESE"
-  | "COMMITTING_CHINESE"
-  | "TRANSLATING_TO_JAPANESE"
-  | "PLAYING_JAPANESE"
+  | "SOURCE_SPEAKING"
+  | "COMMITTING_SOURCE"
+  | "TRANSLATING"
+  | "PLAYING_TARGET"
   | "RESTORING_LISTEN_MODE"
   | "STOPPING"
   | "ERROR";
@@ -42,7 +42,8 @@ export type DebugInfo = {
   microphone: MicrophoneFlag;
   audioContext: AudioContextState | "unavailable";
   realtimeSession: ConnectionFlag;
-  partnerLanguage: PartnerLanguage;
+  sourceLanguage: LanguageCode;
+  targetLanguage: LanguageCode;
   direction: TranslationDirection;
   turnDetection: TurnDetectionMode;
   pushToTalk: PushToTalkState;
@@ -57,7 +58,8 @@ export type ProxyStatusMessage = {
   bailianWs?: ConnectionFlag;
   microphone?: MicrophoneFlag;
   realtimeSession?: ConnectionFlag;
-  partnerLanguage?: PartnerLanguage;
+  sourceLanguage?: LanguageCode;
+  targetLanguage?: LanguageCode;
   direction?: TranslationDirection;
   turnDetection?: TurnDetectionMode;
   audioForwarding?: boolean;
@@ -71,7 +73,8 @@ export type ProxyReadyMessage = {
 export type ProxyModeReadyMessage = {
   type: "proxy.mode_ready";
   direction: TranslationDirection;
-  partnerLanguage: PartnerLanguage;
+  sourceLanguage: LanguageCode;
+  targetLanguage: LanguageCode;
   turnDetection: TurnDetectionMode;
 };
 
@@ -91,7 +94,8 @@ export type BrowserControlMessage = {
 } | {
   type: "browser.set_direction";
   direction: TranslationDirection;
-  partnerLanguage?: PartnerLanguage;
+  sourceLanguage?: LanguageCode;
+  targetLanguage?: LanguageCode;
 } | {
   type: "browser.ptt_release";
 };
