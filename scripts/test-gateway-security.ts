@@ -198,6 +198,35 @@ function waitForProxyStatus(socket: WebSocket): Promise<void> {
   });
 }
 
+function waitForMessage(
+  socket: WebSocket,
+  predicate: (message: { type?: string; direction?: string; transcript?: string }) => boolean,
+  label: string
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error(`Timed out waiting for ${label}.`));
+    }, 5000);
+
+    socket.on("message", (rawMessage) => {
+      try {
+        const message = JSON.parse(rawMessage.toString()) as { type?: string; direction?: string; transcript?: string };
+
+        if (predicate(message)) {
+          clearTimeout(timer);
+          resolve();
+        }
+      } catch {
+        // Ignore non-json test messages.
+      }
+    });
+  });
+}
+
+function waitForProxyReady(socket: WebSocket): Promise<void> {
+  return waitForMessage(socket, (message) => message.type === "proxy.ready", "proxy.ready");
+}
+
 async function testAuthenticationDisabled() {
   const gateway = await startGateway({
     APP_ACCESS_TOKEN: undefined
@@ -294,22 +323,86 @@ async function testGatewayUsesProviderAdapter() {
     socket = await openSocket(gateway.url);
     const activeSocket = socket;
     await waitForProxyStatus(activeSocket);
-    await new Promise<void>((resolve, reject) => {
-      const timer = setTimeout(() => reject(new Error("Timed out waiting for proxy.ready.")), 5000);
+    await waitForProxyReady(activeSocket);
+  } finally {
+    socket?.close();
+    await gateway.close();
+  }
+}
 
-      activeSocket.on("message", (rawMessage) => {
-        try {
-          const message = JSON.parse(rawMessage.toString()) as { type?: string };
+async function testRuntimeSelectsMockProvider() {
+  const gateway = await startGateway(
+    {
+      APP_ACCESS_TOKEN: undefined,
+      TRANSLATION_PROVIDER: "mock"
+    },
+    {
+      autoConnect: true
+    }
+  );
 
-          if (message.type === "proxy.ready") {
-            clearTimeout(timer);
-            resolve();
-          }
-        } catch {
-          // Ignore non-json test messages.
-        }
-      });
-    });
+  let socket: WebSocket | null = null;
+
+  try {
+    socket = await openSocket(gateway.url);
+    await waitForProxyReady(socket);
+  } finally {
+    socket?.close();
+    await gateway.close();
+  }
+}
+
+async function testSecondaryProviderLifecycle() {
+  const gateway = await startGateway(
+    {
+      APP_ACCESS_TOKEN: undefined,
+      TRANSLATION_PROVIDER: "test"
+    },
+    {
+      autoConnect: true
+    }
+  );
+
+  let socket: WebSocket | null = null;
+
+  try {
+    socket = await openSocket(gateway.url);
+    await waitForProxyReady(socket);
+    const pushToTalkReady = waitForMessage(
+      socket,
+      (message) => message.type === "proxy.mode_ready" && message.direction === "push_to_talk",
+      "push-to-talk mode ready"
+    );
+    socket.send(JSON.stringify({
+      type: "browser.set_direction",
+      direction: "push_to_talk",
+      sourceLanguage: "zh",
+      targetLanguage: "en"
+    }));
+    await pushToTalkReady;
+
+    const transcriptDone = waitForMessage(
+      socket,
+      (message) => message.type === "conversation.item.input_audio_transcription.completed",
+      "secondary provider transcript"
+    );
+    const translationDone = waitForMessage(
+      socket,
+      (message) => message.type === "response.audio_transcript.done",
+      "secondary provider translation"
+    );
+    const responseDone = waitForMessage(
+      socket,
+      (message) => message.type === "response.done",
+      "secondary provider response done"
+    );
+
+    socket.send(Buffer.from([1, 2, 3, 4]));
+    socket.send(JSON.stringify({ type: "browser.ptt_release" }));
+
+    await transcriptDone;
+    await translationDone;
+    await responseDone;
   } finally {
     socket?.close();
     await gateway.close();
@@ -322,6 +415,8 @@ async function main() {
   await testOversizedMessageRejected();
   await testSessionTimeoutHandled();
   await testGatewayUsesProviderAdapter();
+  await testRuntimeSelectsMockProvider();
+  await testSecondaryProviderLifecycle();
 
   console.log("Gateway security tests: passed");
 }

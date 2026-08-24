@@ -38,6 +38,27 @@ export type RealtimeProviderEvent =
 
 export type RealtimeProviderEventHandler = (event: RealtimeProviderEvent) => void;
 
+export class ProviderConnectionError extends Error {
+  constructor(message = "Realtime provider connection failed.") {
+    super(message);
+    this.name = "ProviderConnectionError";
+  }
+}
+
+export class ProviderAuthenticationError extends Error {
+  constructor(message = "Realtime provider authentication failed.") {
+    super(message);
+    this.name = "ProviderAuthenticationError";
+  }
+}
+
+export class ProviderResponseError extends Error {
+  constructor(message = "Realtime provider returned an invalid response.") {
+    super(message);
+    this.name = "ProviderResponseError";
+  }
+}
+
 export interface RealtimeProvider {
   readonly name: string;
 

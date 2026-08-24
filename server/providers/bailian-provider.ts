@@ -7,6 +7,11 @@ import {
   normalizeDashScopeRegion
 } from "../../lib/config/realtime";
 import type { ProviderServerEvent } from "../../types/realtime";
+import {
+  ProviderAuthenticationError,
+  ProviderConnectionError,
+  ProviderResponseError
+} from "./interface";
 import type {
   RealtimeProvider,
   RealtimeProviderEvent,
@@ -67,6 +72,18 @@ function parseProviderError(body: string): ParsedProviderError {
       message: body
     };
   }
+}
+
+function createProviderError(statusCode?: number, message?: string): Error {
+  if (statusCode === 401 || statusCode === 403) {
+    return new ProviderAuthenticationError(message || "Realtime provider authentication failed.");
+  }
+
+  if (statusCode && statusCode >= 400) {
+    return new ProviderResponseError(message || "Realtime provider returned an error response.");
+  }
+
+  return new ProviderConnectionError(message || "Realtime provider connection failed.");
 }
 
 function loadBailianProviderConfig(): BailianProviderConfig {
@@ -221,12 +238,13 @@ export class BailianRealtimeProvider implements RealtimeProvider {
       response.on("end", () => {
         const body = Buffer.concat(chunks).toString("utf8").trim();
         const parsed = parseProviderError(body);
+        const providerError = createProviderError(response.statusCode, parsed.message);
 
         this.emit({
           type: "provider_unexpected_response",
           statusCode: response.statusCode,
           providerCode: parsed.code,
-          message: parsed.message || "无法连接翻译服务。"
+          message: providerError.message
         });
       });
     });
@@ -235,7 +253,7 @@ export class BailianRealtimeProvider implements RealtimeProvider {
       if (socket === this.socket) {
         this.emit({
           type: "provider_error",
-          message: error.message
+          message: new ProviderConnectionError(error.message).message
         });
       }
     });

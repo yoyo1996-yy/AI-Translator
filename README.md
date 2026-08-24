@@ -86,20 +86,27 @@ The Gateway is responsible for:
 
 The Provider Layer is designed to be extensible. The current production provider is Bailian realtime. A mock provider is included for local tests. Other providers can be added by implementing the realtime provider interface described in [docs/provider-architecture.md](docs/provider-architecture.md).
 
-## AI Providers
+## Provider Support
 
 The runtime supports pluggable AI providers.
 
 Current providers:
 
 - Bailian realtime provider.
-- Mock provider for testing.
+- Mock provider.
+- Secondary test provider for validating adapter extensibility.
 
 Provider selection:
 
 ```env
-TRANSLATION_PROVIDER=bailian
+TRANSLATION_PROVIDER=<provider>
 ```
+
+Available values:
+
+- `bailian`
+- `mock`
+- `test`
 
 The default provider is `bailian`, so existing deployments keep the same behavior unless this variable is changed.
 

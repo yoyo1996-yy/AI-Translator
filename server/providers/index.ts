@@ -1,8 +1,9 @@
 import { assertBailianProviderConfig, createBailianRealtimeProvider } from "./bailian-provider";
 import { createMockRealtimeProvider } from "./mock-provider";
+import { createTestRealtimeProvider } from "./test-provider";
 import type { RealtimeProviderFactory } from "./interface";
 
-export type ProviderName = "bailian" | "mock";
+export type ProviderName = "bailian" | "mock" | "test";
 
 function getTrimmedEnv(name: string): string {
   const value = process.env[name];
@@ -23,6 +24,10 @@ export function getSelectedProviderName(): ProviderName {
     return "mock";
   }
 
+  if (providerName === "test") {
+    return "test";
+  }
+
   return "bailian";
 }
 
@@ -30,6 +35,8 @@ export function createSelectedRealtimeProviderFactory(providerName: ProviderName
   switch (providerName) {
     case "mock":
       return createMockRealtimeProvider;
+    case "test":
+      return createTestRealtimeProvider;
     case "bailian":
     default:
       return createBailianRealtimeProvider;
