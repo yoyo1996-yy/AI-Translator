@@ -6,15 +6,15 @@ It helps you build a private speech translation app where the frontend connects 
 
 Current app focus:
 
-- Other speaker: Japanese or English speech to Chinese subtitles and Chinese speech playback.
-- User speech: push-to-talk Chinese to Japanese or English subtitles and speech playback.
+- Conversation Mode: realtime speech from the source language to the selected target language.
+- Push-To-Talk Mode: user speech from the selected source language to the selected target language.
 - Personal self-hosted deployment for browser, PWA, and Android usage.
 
 ## Features
 
 - Realtime speech translation through a WebSocket Gateway.
-- Japanese to Chinese and English to Chinese listening modes.
-- Chinese to Japanese and Chinese to English push-to-talk translation.
+- Conversation Mode for realtime source-language listening and target-language playback.
+- Push-To-Talk Mode for selected source-language input and target-language playback.
 - Source subtitles, translated subtitles, and translated speech playback.
 - Web client built with Next.js.
 - Installable PWA metadata and mobile-oriented layout.
@@ -166,20 +166,20 @@ For Android builds, provide your own Gateway URL through `REALTIME_PROXY_URL` or
 
 ## Usage
 
-### Other Speaker To Chinese
+### Conversation Mode
 
-1. Select `日本語` or `English`.
+1. Select the target language for the conversation.
 2. Click `开始同传`.
-3. Let the other speaker speak Japanese or English.
-4. The app shows source subtitles, Chinese translation, and Chinese speech playback.
+3. Let the other speaker speak in the source language.
+4. The app shows source-language subtitles, target-language subtitles, and target-language speech playback.
 
-### Chinese Push-To-Talk
+### Push-To-Talk Mode
 
-1. Hold `按住说中文`.
-2. Speak one Chinese utterance.
+1. Hold the push-to-talk button.
+2. Speak in the selected source language.
 3. Release the button.
-4. The app generates target-language subtitles and speech.
-5. After playback, the app restores listening mode automatically.
+4. The app generates selected target-language subtitles and speech.
+5. After playback, the app restores Conversation Mode automatically.
 
 ## Android Client
 
@@ -254,7 +254,7 @@ npm run test:fc-env
 
 - The current production realtime provider adapter is Qwen/Bailian.
 - Other providers require their own realtime adapter and compatible speech/audio capability.
-- Chinese to Japanese/English uses push-to-talk rather than continuous always-on two-way speech.
+- Push-To-Talk Mode submits selected source-language turns rather than running as continuous always-on two-way speech.
 - Browser audio playback can require a user gesture depending on the browser.
 - In-memory Gateway limits and rate limits do not coordinate across multiple server instances.
 - Users are responsible for their own AI API usage and cloud costs.
