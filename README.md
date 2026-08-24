@@ -6,7 +6,7 @@ It helps you build a private speech translation app where the frontend connects 
 
 Current app focus:
 
-- Conversation Mode: realtime speech from the source language to the selected target language.
+- Conversation Mode: realtime speech from the selected source language to the selected target language.
 - Push-To-Talk Mode: user speech from the selected source language to the selected target language.
 - Personal self-hosted deployment for browser, PWA, and Android usage.
 
@@ -15,7 +15,8 @@ Current app focus:
 - Realtime speech translation through a WebSocket Gateway.
 - Conversation Mode for realtime source-language listening and target-language playback.
 - Push-To-Talk Mode for selected source-language input and target-language playback.
-- Source subtitles, translated subtitles, and translated speech playback.
+- Speech recognition, source subtitles, translated subtitles, and translated speech playback.
+- Text-to-speech playback for translated results.
 - Web client built with Next.js.
 - Installable PWA metadata and mobile-oriented layout.
 - Android client built with Capacitor.
@@ -168,18 +169,20 @@ For Android builds, provide your own Gateway URL through `REALTIME_PROXY_URL` or
 
 ### Conversation Mode
 
-1. Select the target language for the conversation.
-2. Click `开始同传`.
-3. Let the other speaker speak in the source language.
-4. The app shows source-language subtitles, target-language subtitles, and target-language speech playback.
+1. Select source language.
+2. Select target language.
+3. Start real-time conversation.
+4. The app detects speech automatically.
+5. The app displays original subtitles, translated subtitles, and optional voice playback.
 
 ### Push-To-Talk Mode
 
 1. Hold the push-to-talk button.
 2. Speak in the selected source language.
 3. Release the button.
-4. The app generates selected target-language subtitles and speech.
-5. After playback, the app restores Conversation Mode automatically.
+4. The app translates speech into the selected target language.
+5. The app generates translated subtitles and speech playback.
+6. After playback, the app restores Conversation Mode automatically.
 
 ## Android Client
 
