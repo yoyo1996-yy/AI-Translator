@@ -1,0 +1,20 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "outDir": ".fc-build",
+    "module": "Node16",
+    "moduleResolution": "Node16",
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "isolatedModules": false,
+    "incremental": false
+  },
+  "include": [
+    "server/cloud-server.ts",
+    "server/realtime-proxy.ts",
+    "server/providers/**/*.ts",
+    "lib/config/realtime.ts",
+    "types/realtime.ts"
+  ]
+}

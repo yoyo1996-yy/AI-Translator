@@ -1,0 +1,60 @@
+# Environment
+.env
+.env.*
+!.env.example
+
+# Dependencies
+node_modules/
+
+# Build
+.next/
+out/
+dist/
+build/
+coverage/
+
+# Server build
+.fc-build/
+
+# Android
+.android-tools/
+.gradle-home/
+android/.gradle/
+android/build/
+android/app/build/
+android/**/build/
+android/app/src/main/assets/public/
+android/local.properties
+
+# Deployment staging
+deploy/aliyun-fc/package/
+deploy/aliyun-fc/verify/
+deploy/aliyun-fc/verify-fc/
+deploy/aliyun-fc/fc-upload-v04/
+deploy/aliyun-fc/zip-check-v04/
+deploy/**/*.zip
+deploy/**/*.apk
+
+# Logs and caches
+.npm-cache/
+*.log
+.next-dev.*.log
+
+# Packages
+*.apk
+*.aab
+*.zip
+
+# Signing
+*.jks
+*.keystore
+*.pem
+*.p12
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db

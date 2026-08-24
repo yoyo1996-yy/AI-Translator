@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">AI 随身同传</string>
+    <string name="title_activity_main">AI 随身同传</string>
+    <string name="package_name">com.xrwei.aitranslator</string>
+    <string name="custom_url_scheme">com.xrwei.aitranslator</string>
+</resources>

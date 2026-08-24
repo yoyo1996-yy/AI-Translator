@@ -1,0 +1,38 @@
+edition: 3.0.0
+name: ai-portable-interpreter-v03
+access: default
+
+resources:
+  aiPortableInterpreter:
+    component: fc3
+    props:
+      region: cn-beijing
+      functionName: ai-portable-interpreter-v03
+      description: AI 随身同传 V0.3 mobile web/PWA service
+      runtime: custom-container
+      timeout: 3600
+      memorySize: 1024
+      cpu: 1
+      instanceConcurrency: 10
+      environmentVariables:
+        DASHSCOPE_API_KEY: ${env.DASHSCOPE_API_KEY}
+        DASHSCOPE_WORKSPACE_ID: ${env.DASHSCOPE_WORKSPACE_ID}
+        DASHSCOPE_REGION: ${env.DASHSCOPE_REGION}
+        REALTIME_PROXY_PATH: /realtime
+        NEXT_PUBLIC_REALTIME_PROXY_URL: ${env.NEXT_PUBLIC_REALTIME_PROXY_URL}
+        ALLOWED_ORIGINS: ${env.ALLOWED_ORIGINS}
+        DEBUG_REALTIME: "false"
+        ENABLE_TRANSLATION_GLOSSARY: "false"
+      customContainerConfig:
+        image: registry.cn-beijing.aliyuncs.com/YOUR_NAMESPACE/ai-portable-interpreter-v03:latest
+        port: 9000
+      triggers:
+        - triggerName: public-http
+          triggerType: http
+          qualifier: LATEST
+          triggerConfig:
+            authType: anonymous
+            methods:
+              - GET
+              - POST
+              - OPTIONS
