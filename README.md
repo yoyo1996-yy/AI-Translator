@@ -93,7 +93,7 @@ Requirements:
 Clone and install:
 
 ```bash
-git clone <your-fork-or-repository-url>
+git clone https://github.com/yoyo1996-yy/AI-Translator.git
 cd AI-Translator
 npm install
 ```
