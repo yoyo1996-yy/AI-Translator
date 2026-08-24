@@ -1,5 +1,11 @@
 # AI-Translator / AI 随身同传
 
+[![License](https://img.shields.io/github/license/yoyo1996-yy/AI-Translator)](LICENSE)
+[![GitHub Release](https://img.shields.io/github/v/release/yoyo1996-yy/AI-Translator)](https://github.com/yoyo1996-yy/AI-Translator/releases)
+[![CI](https://github.com/yoyo1996-yy/AI-Translator/actions/workflows/ci.yml/badge.svg)](https://github.com/yoyo1996-yy/AI-Translator/actions/workflows/ci.yml)
+
+An AI-powered multilingual real-time translation platform with web and Android client support.
+
 AI-Translator is a self-hostable realtime AI translation framework with a web client, an Android client, and a server-side realtime Gateway.
 
 It helps you build a private speech translation app where the frontend connects to your own Gateway, and the Gateway connects to an AI realtime model provider without exposing provider API keys to the browser or mobile app.
@@ -12,21 +18,45 @@ Current app focus:
 
 ## Features
 
-- Realtime speech translation through a WebSocket Gateway.
-- Conversation Mode for realtime source-language listening and target-language playback.
-- Push-To-Talk Mode for selected source-language input and target-language playback.
-- Speech recognition, source subtitles, translated subtitles, and translated speech playback.
+- AI-powered translation through a server-side realtime Gateway.
+- Real-time speech recognition for conversation input.
 - Text-to-speech playback for translated results.
 - Web client built with Next.js.
 - Installable PWA metadata and mobile-oriented layout.
 - Android client built with Capacitor.
+- Multilingual Conversation Mode for source-language listening and target-language playback.
+- Push-to-talk translation mode for selected source-language input and target-language playback.
 - Server-side Gateway for hiding provider API keys from clients.
 - Provider abstraction layer with a production Qwen/Bailian adapter and a mock provider for tests.
 - Optional Gateway access token authentication with `APP_ACCESS_TOKEN`.
 - Basic Gateway resource limits and in-memory rate limiting.
 - Self-host deployment preparation for Alibaba Cloud Function Compute Custom Runtime ZIP packages.
 
+## Supported Languages
+
+Supports multiple languages through configurable source and target language selection.
+
 ## Architecture
+
+User-facing translation flow:
+
+```text
+User Speech
+  |
+  v
+Speech Recognition
+  |
+  v
+AI Translation Engine
+  |
+  v
+Translated Text
+  |
+  v
+Text-to-Speech Playback
+```
+
+Application architecture:
 
 ```text
 Frontend / Android WebView / PWA
@@ -252,6 +282,15 @@ npm run test:fc-env
 - [V0.2 end-to-end checklist](docs/v0.2-e2e-test-checklist.md)
 - [V0.2 release notes](docs/v0.2-release-notes.md)
 - [V0.3 mobile deployment](docs/v0.3-mobile-deployment.md)
+
+## Roadmap
+
+Planned improvements:
+
+- Improve translation quality.
+- Add more language support.
+- Improve mobile experience.
+- Optimize latency.
 
 ## Known Limitations
 
