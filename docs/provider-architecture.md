@@ -25,6 +25,17 @@ The Gateway owns:
 
 The Gateway does not build provider-specific audio append, commit, finish, or session update events directly.
 
+The product UI uses a user-facing language profile, while the Gateway protocol keeps neutral direction fields:
+
+```text
+My Language / Other Person's Language
+  -> direction mapper
+  -> sourceLanguage / targetLanguage
+  -> Gateway
+```
+
+Conversation Mode maps `Other Person's Language -> My Language`. Push-To-Talk maps `My Language -> Other Person's Language`.
+
 ## Provider Adapter
 
 Provider adapters implement:

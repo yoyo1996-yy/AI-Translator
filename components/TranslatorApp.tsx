@@ -10,8 +10,7 @@ import { useAudioDevices } from "../hooks/useAudioDevices";
 import { useRealtimeTranslation } from "../hooks/useRealtimeTranslation";
 import {
   getLanguageLabel,
-  SOURCE_LANGUAGE_OPTIONS,
-  TARGET_LANGUAGE_OPTIONS
+  PROFILE_LANGUAGE_OPTIONS
 } from "../lib/config/languages";
 import type { AppStatus, ConversationMode, LanguageCode } from "../types/realtime";
 
@@ -20,8 +19,8 @@ type OperationStatusTone = "idle" | "listen" | "speak" | "work" | "play" | "erro
 function getOperationStatus(
   status: AppStatus,
   conversationMode: ConversationMode,
-  sourceLanguageName: string,
-  targetLanguageName: string,
+  userLanguageName: string,
+  peerLanguageName: string,
   muted: boolean
 ): { label: string; detail: string; tone: OperationStatusTone } {
   if (status === "error" || conversationMode === "ERROR") {
@@ -35,7 +34,7 @@ function getOperationStatus(
   if (status === "idle") {
     return {
       label: "未开始",
-      detail: `${sourceLanguageName} → ${targetLanguageName}`,
+      detail: `${peerLanguageName} → ${userLanguageName}`,
       tone: "idle"
     };
   }
@@ -59,14 +58,21 @@ function getOperationStatus(
   if (conversationMode === "PREPARING_TO_SPEAK" || conversationMode === "SOURCE_SPEAKING") {
     return {
       label: "正在录制源语言",
-      detail: `松开后翻译成 ${targetLanguageName}。`,
+      detail: `松开后翻译成 ${peerLanguageName}。`,
       tone: "speak"
     };
   }
 
+  const activeTargetLanguageName =
+    conversationMode === "TRANSLATING" ||
+    conversationMode === "COMMITTING_SOURCE" ||
+    conversationMode === "PLAYING_TARGET"
+      ? peerLanguageName
+      : userLanguageName;
+
   if (conversationMode === "TRANSLATING" || conversationMode === "COMMITTING_SOURCE") {
     return {
-      label: `正在翻译成 ${targetLanguageName}`,
+      label: `正在翻译成 ${activeTargetLanguageName}`,
       detail: "等待字幕和语音返回。",
       tone: "work"
     };
@@ -74,7 +80,7 @@ function getOperationStatus(
 
   if (conversationMode === "PLAYING_TARGET") {
     return {
-      label: muted ? "译文语音已静音" : `正在播放 ${targetLanguageName}`,
+      label: muted ? "译文语音已静音" : `正在播放 ${activeTargetLanguageName}`,
       detail: "当前句播放完成后恢复听译。",
       tone: "play"
     };
@@ -98,7 +104,7 @@ function getOperationStatus(
 
   return {
     label: "Conversation Mode",
-    detail: `${sourceLanguageName} → ${targetLanguageName}`,
+    detail: `${peerLanguageName} → ${userLanguageName}`,
     tone: "listen"
   };
 }
@@ -141,13 +147,13 @@ export function TranslatorApp() {
   const audioDevices = useAudioDevices(realtime.debugInfo.microphone === "Active");
   const targetText = realtime.currentTargetTranslation || realtime.finalTargetTranslation;
   const sourcePushToTalkText = realtime.currentMyTranscript || realtime.finalMyTranscript;
-  const sourceLanguageName = getLanguageLabel(realtime.sourceLanguage);
-  const targetLanguageName = getLanguageLabel(realtime.targetLanguage);
+  const userLanguageName = getLanguageLabel(realtime.userLanguage);
+  const peerLanguageName = getLanguageLabel(realtime.peerLanguage);
   const operationStatus = getOperationStatus(
     realtime.status,
     realtime.conversationMode,
-    sourceLanguageName,
-    targetLanguageName,
+    userLanguageName,
+    peerLanguageName,
     realtime.muted
   );
   const canChangeLanguage =
@@ -158,9 +164,9 @@ export function TranslatorApp() {
     realtime.conversationMode === "PREPARING_TO_SPEAK" || realtime.conversationMode === "SOURCE_SPEAKING"
       ? "松开结束并翻译"
       : realtime.conversationMode === "COMMITTING_SOURCE" || realtime.conversationMode === "TRANSLATING"
-        ? `正在翻译成 ${targetLanguageName}……`
+        ? `正在翻译成 ${peerLanguageName}……`
         : realtime.conversationMode === "PLAYING_TARGET"
-          ? `正在播放 ${targetLanguageName}……`
+          ? `正在播放 ${peerLanguageName}……`
           : realtime.conversationMode === "RESTORING_LISTEN_MODE"
             ? "正在恢复听译……"
             : "按住说话";
@@ -181,25 +187,25 @@ export function TranslatorApp() {
         <header className="app-header">
           <div>
             <h1>AI 随身同传</h1>
-            <p>Source Language ⇄ Target Language</p>
+            <p>我的语言 ⇄ 对方语言</p>
           </div>
           <ConnectionStatus status={realtime.status} />
         </header>
 
         <div className="language-selector-grid">
           <LanguagePicker
-            title="Source Language"
-            value={realtime.sourceLanguage}
-            options={SOURCE_LANGUAGE_OPTIONS}
+            title="我的语言"
+            value={realtime.userLanguage}
+            options={PROFILE_LANGUAGE_OPTIONS}
             disabled={!canChangeLanguage}
-            onChange={realtime.setSourceLanguage}
+            onChange={realtime.setUserLanguage}
           />
           <LanguagePicker
-            title="Target Language"
-            value={realtime.targetLanguage}
-            options={TARGET_LANGUAGE_OPTIONS}
+            title="对方语言"
+            value={realtime.peerLanguage}
+            options={PROFILE_LANGUAGE_OPTIONS}
             disabled={!canChangeLanguage}
-            onChange={realtime.setTargetLanguage}
+            onChange={realtime.setPeerLanguage}
           />
         </div>
 
@@ -233,31 +239,31 @@ export function TranslatorApp() {
 
         <div className="transcript-stack">
           <TranscriptPanel
-            title="Conversation Mode"
-            language="Source Language"
+            title="对方说"
+            language="对方语言"
             text={realtime.currentSourceTranscript || realtime.finalSourceTranscript}
             placeholder="Waiting for source speech..."
           />
           <TranscriptPanel
-            title="Target Language"
-            language="Translated Subtitles"
+            title="我的语言"
+            language="译文字幕"
             text={realtime.currentTranslation}
             placeholder="Translated subtitles will appear here."
             emphasized
           />
           <TranscriptPanel
-            title="Push-To-Talk Mode"
-            language="Source Language"
+            title="我说"
+            language="我的语言"
             text={sourcePushToTalkText}
             placeholder="Hold the talk button and speak."
           />
-          <section className="transcript-card target-output" aria-label="Target Language Output">
+          <section className="transcript-card target-output" aria-label="Other Person Language Output">
             <div className="transcript-heading">
-              <h2>Target Language</h2>
-              <span>Translated speech/text</span>
+              <h2>对方语言</h2>
+              <span>译文语音/字幕</span>
             </div>
             <p className="transcript-text transcript-text-large">
-              {targetText || `Your ${targetLanguageName} translation will appear here.`}
+              {targetText || `Your ${peerLanguageName} translation will appear here.`}
             </p>
             {realtime.finalTargetTranslation ? (
               <div className="target-actions">

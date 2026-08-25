@@ -5,6 +5,15 @@ import {
   getProviderCapabilities,
   isSupportedLanguagePair
 } from "../lib/languages/registry";
+import {
+  DEFAULT_LANGUAGE_PROFILE,
+  getListeningDirection,
+  getProfileLanguageOptions,
+  getPushToTalkDirection,
+  parseLanguageProfile,
+  serializeLanguageProfile,
+  validateLanguageProfile
+} from "../lib/languages/profile";
 import { getProviderSessionLanguages, validateProviderLanguagePair } from "../server/language-session";
 
 function testUniqueLanguageCodes(): void {
@@ -61,14 +70,87 @@ function testProviderSpecificMappingIsNotInRegistry(): void {
 }
 
 function testPushToTalkReverseDirection(): void {
-  const conversationPair = getProviderSessionLanguages("conversation", "zh", "ja");
-  const pushToTalkPair = getProviderSessionLanguages("push_to_talk", "zh", "ja");
+  const conversationPair = getListeningDirection(DEFAULT_LANGUAGE_PROFILE);
+  const pushToTalkPair = getPushToTalkDirection(DEFAULT_LANGUAGE_PROFILE);
 
   assert.deepEqual(conversationPair, {
     sourceLanguage: "ja",
     targetLanguage: "zh"
   });
   assert.deepEqual(pushToTalkPair, {
+    sourceLanguage: "zh",
+    targetLanguage: "ja"
+  });
+}
+
+function testDefaultProfile(): void {
+  assert.deepEqual(DEFAULT_LANGUAGE_PROFILE, {
+    userLanguage: "zh",
+    peerLanguage: "ja"
+  });
+}
+
+function testEnglishUserProfileDirections(): void {
+  const profile = {
+    userLanguage: "en",
+    peerLanguage: "zh"
+  };
+
+  assert.deepEqual(getListeningDirection(profile), {
+    sourceLanguage: "zh",
+    targetLanguage: "en"
+  });
+  assert.deepEqual(getPushToTalkDirection(profile), {
+    sourceLanguage: "en",
+    targetLanguage: "zh"
+  });
+}
+
+function testLanguageProfileRejected(): void {
+  const capabilities = getProviderCapabilities("bailian");
+  const sameLanguageResult = validateLanguageProfile(
+    {
+      userLanguage: "zh",
+      peerLanguage: "zh"
+    },
+    capabilities
+  );
+  const unsupportedResult = validateLanguageProfile(
+    {
+      userLanguage: "zh",
+      peerLanguage: "fr"
+    },
+    capabilities
+  );
+
+  assert.equal(sameLanguageResult.ok, false);
+  assert.equal(unsupportedResult.ok, false);
+}
+
+function testPersistedProfileRestored(): void {
+  const profile = {
+    userLanguage: "en",
+    peerLanguage: "zh"
+  };
+
+  assert.deepEqual(parseLanguageProfile(serializeLanguageProfile(profile)), profile);
+  assert.equal(parseLanguageProfile("{not json"), null);
+}
+
+function testSelectorOptionsComeFromCapabilities(): void {
+  const capabilities = getProviderCapabilities("bailian");
+  const options = getProfileLanguageOptions(capabilities);
+  const optionCodes = options.map((option) => option.code);
+
+  assert.deepEqual(optionCodes.sort(), ["en", "ja", "zh"]);
+}
+
+function testGatewayProtocolPairNotReversed(): void {
+  assert.deepEqual(getProviderSessionLanguages("conversation", "ja", "zh"), {
+    sourceLanguage: "ja",
+    targetLanguage: "zh"
+  });
+  assert.deepEqual(getProviderSessionLanguages("push_to_talk", "zh", "ja"), {
     sourceLanguage: "zh",
     targetLanguage: "ja"
   });
@@ -81,7 +163,13 @@ function main(): void {
   testSupportedPairAccepted();
   testUnsupportedPairRejected();
   testProviderSpecificMappingIsNotInRegistry();
+  testDefaultProfile();
   testPushToTalkReverseDirection();
+  testEnglishUserProfileDirections();
+  testLanguageProfileRejected();
+  testPersistedProfileRestored();
+  testSelectorOptionsComeFromCapabilities();
+  testGatewayProtocolPairNotReversed();
 
   console.log("Language registry tests: passed");
 }

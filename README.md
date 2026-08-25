@@ -12,8 +12,8 @@ It helps you build a private speech translation app where the frontend connects 
 
 Current app focus:
 
-- Conversation Mode: realtime speech from the selected source language to the selected target language.
-- Push-To-Talk Mode: user speech from the selected source language to the selected target language.
+- Conversation Mode: realtime speech from the other person's language to my language.
+- Push-To-Talk Mode: my speech to the other person's language.
 - Personal self-hosted deployment for browser, PWA, and Android usage.
 
 ## Features
@@ -24,8 +24,8 @@ Current app focus:
 - Web client built with Next.js.
 - Installable PWA metadata and mobile-oriented layout.
 - Android client built with Capacitor.
-- Multilingual Conversation Mode for source-language listening and target-language playback.
-- Push-to-talk translation mode for selected source-language input and target-language playback.
+- Multilingual Conversation Mode for other-person speech to my-language playback.
+- Push-to-talk translation mode for my-language speech to other-person-language playback.
 - Server-side Gateway for hiding provider API keys from clients.
 - Pluggable realtime provider layer with Bailian and mock providers.
 - Optional Gateway access token authentication with `APP_ACCESS_TOKEN`.
@@ -255,18 +255,19 @@ For Android builds, provide your own Gateway URL through `REALTIME_PROXY_URL` or
 
 ### Conversation Mode
 
-1. Select source language.
-2. Select target language.
+1. Select `My Language`.
+2. Select `Other Person's Language`.
 3. Start real-time conversation.
 4. The app detects speech automatically.
-5. The app displays original subtitles, translated subtitles, and optional voice playback.
+5. The app translates `Other Person's Language` to `My Language`.
+6. The app displays original subtitles, translated subtitles, and optional voice playback.
 
 ### Push-To-Talk Mode
 
 1. Hold the push-to-talk button.
-2. Speak in the selected source language.
+2. Speak in `My Language`.
 3. Release the button.
-4. The app translates speech into the selected target language.
+4. The app translates speech into `Other Person's Language`.
 5. The app generates translated subtitles and speech playback.
 6. After playback, the app restores Conversation Mode automatically.
 
@@ -400,7 +401,7 @@ Planned improvements:
 
 - The current production realtime provider is Bailian.
 - Other providers require their own realtime adapter and compatible speech/audio capability.
-- Push-To-Talk Mode submits selected source-language turns rather than running as continuous always-on two-way speech.
+- Push-To-Talk Mode submits my-language turns rather than running as continuous always-on two-way speech.
 - Browser audio playback can require a user gesture depending on the browser.
 - In-memory Gateway limits and rate limits do not coordinate across multiple server instances.
 - Users are responsible for their own AI API usage and cloud costs.

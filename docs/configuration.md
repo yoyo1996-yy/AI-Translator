@@ -111,6 +111,17 @@ Current validated languages:
 
 The UI language selector is generated from the selected provider's language capabilities. Additional languages can be added to the language registry, but they should not be documented as available until a provider adapter declares and verifies support.
 
+The product UI uses a user-facing language profile:
+
+- `My Language`
+- `Other Person's Language`
+
+Conversation Mode maps this profile to `Other Person's Language -> My Language`.
+
+Push-To-Talk Mode maps this profile to `My Language -> Other Person's Language`.
+
+The Gateway protocol still uses `sourceLanguage` and `targetLanguage`. The product layer maps the profile before sending a session request.
+
 The Gateway rejects unsupported language pairs before starting a provider session. `sourceLanguage` and `targetLanguage` must be different.
 
 ## Security

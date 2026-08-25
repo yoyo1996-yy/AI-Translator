@@ -28,11 +28,6 @@ export type LanguagePair = {
 
 export type ProviderName = "bailian" | "mock" | "test";
 
-export const DEFAULT_APP_LANGUAGE_PAIR: LanguagePair = {
-  sourceLanguage: "zh",
-  targetLanguage: "ja"
-};
-
 export const AUTO_SOURCE_LANGUAGE_OPTION: LanguageOption = {
   code: "auto",
   label: "Auto"
@@ -127,13 +122,7 @@ export function getProviderSessionLanguagePair(
   direction: TranslationDirection,
   pair: LanguagePair
 ): LanguagePair {
-  if (direction === "conversation") {
-    return {
-      sourceLanguage: pair.targetLanguage,
-      targetLanguage: pair.sourceLanguage
-    };
-  }
-
+  void direction;
   return pair;
 }
 

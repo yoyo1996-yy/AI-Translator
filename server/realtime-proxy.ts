@@ -7,7 +7,7 @@ import {
   PROXY_PORT,
   SESSION_FINISH_TIMEOUT_MS
 } from "../lib/config/realtime";
-import { DEFAULT_APP_LANGUAGE_PAIR } from "../lib/languages/registry";
+import { DEFAULT_LANGUAGE_PROFILE, getListeningDirection } from "../lib/languages/profile";
 import { validateProviderLanguagePair } from "./language-session";
 import {
   type GatewaySecurityConfig,
@@ -201,6 +201,26 @@ function getMessageByteLength(rawMessage: WebSocket.RawData): number {
   return rawMessage.byteLength;
 }
 
+function getInitialLanguagePair(request: IncomingMessage): {
+  sourceLanguage: LanguageCode;
+  targetLanguage: LanguageCode;
+} {
+  const defaultPair = getListeningDirection(DEFAULT_LANGUAGE_PROFILE);
+
+  try {
+    const url = new URL(request.url ?? "", "ws://localhost");
+    const sourceLanguage = url.searchParams.get("sourceLanguage")?.trim() || defaultPair.sourceLanguage;
+    const targetLanguage = url.searchParams.get("targetLanguage")?.trim() || defaultPair.targetLanguage;
+
+    return {
+      sourceLanguage,
+      targetLanguage
+    };
+  } catch {
+    return defaultPair;
+  }
+}
+
 function verifyGatewayClient(
   runtime: GatewaySecurityRuntime,
   request: IncomingMessage,
@@ -272,9 +292,10 @@ export function attachRealtimeProxy(
   log("[Browser] connected");
 
   let providerSession: RealtimeProvider | null = null;
+  const initialLanguagePair = getInitialLanguagePair(request);
   let currentDirection: TranslationDirection = "conversation";
-  let currentSourceLanguage: LanguageCode = DEFAULT_APP_LANGUAGE_PAIR.sourceLanguage;
-  let currentTargetLanguage: LanguageCode = DEFAULT_APP_LANGUAGE_PAIR.targetLanguage;
+  let currentSourceLanguage: LanguageCode = initialLanguagePair.sourceLanguage;
+  let currentTargetLanguage: LanguageCode = initialLanguagePair.targetLanguage;
   let currentTurnDetection: TurnDetectionMode = "server_vad";
   let currentSessionReady = false;
   let pendingSwitchDirection: TranslationDirection | null = null;
@@ -547,7 +568,7 @@ export function attachRealtimeProxy(
               if (currentDirection === "push_to_talk") {
                 log(`[Session] push-to-talk ${currentSourceLanguage} -> ${currentTargetLanguage} ready`);
               } else {
-                log(`[Session] conversation ${currentTargetLanguage} -> ${currentSourceLanguage} ready`);
+                log(`[Session] conversation ${currentSourceLanguage} -> ${currentTargetLanguage} ready`);
               }
               safeSend(browserSocket, {
                 type: "proxy.mode_ready",
@@ -803,7 +824,7 @@ export function attachRealtimeProxy(
           log("[PTT] pressed");
           log(`[Session] switching to ${currentSourceLanguage} -> ${currentTargetLanguage} manual`);
         } else {
-          log(`[Session] restoring ${currentTargetLanguage} -> ${currentSourceLanguage} VAD`);
+          log(`[Session] restoring ${currentSourceLanguage} -> ${currentTargetLanguage} VAD`);
         }
 
         finishCurrentSession(message.direction, true);

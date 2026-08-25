@@ -9,10 +9,18 @@ import {
   RECONNECT_MAX_DELAY_MS,
   getBrowserRealtimeProxyUrl
 } from "../lib/config/realtime";
+import { CLIENT_PROVIDER_NAME } from "../lib/config/languages";
 import {
-  DEFAULT_APP_LANGUAGE_PAIR,
-  isSameLanguagePair
-} from "../lib/languages/registry";
+  DEFAULT_LANGUAGE_PROFILE,
+  LANGUAGE_PROFILE_STORAGE_KEY,
+  getDirectionLanguagePair,
+  getListeningDirection,
+  getProfileFromDirection,
+  parseLanguageProfile,
+  serializeLanguageProfile,
+  validateProviderLanguageProfile
+} from "../lib/languages/profile";
+import type { LanguagePair, LanguageProfile } from "../lib/languages/profile";
 import type {
   AppStatus,
   ClientRealtimeMessage,
@@ -34,6 +42,7 @@ import { useMicrophone } from "./useMicrophone";
 const FINISH_WAIT_MS = 7000;
 const PUSH_TO_TALK_TRANSLATION_TIMEOUT_MS = 12000;
 const INITIAL_REALTIME_READY_TIMEOUT_MS = 45000;
+const initialListeningDirection = getListeningDirection(DEFAULT_LANGUAGE_PROFILE);
 
 const initialDebugInfo: DebugInfo = {
   browserWs: "Disconnected",
@@ -42,8 +51,8 @@ const initialDebugInfo: DebugInfo = {
   audioContext: "unavailable",
   realtimeSession: "Disconnected",
   direction: "conversation",
-  sourceLanguage: DEFAULT_APP_LANGUAGE_PAIR.sourceLanguage,
-  targetLanguage: DEFAULT_APP_LANGUAGE_PAIR.targetLanguage,
+  sourceLanguage: initialListeningDirection.sourceLanguage,
+  targetLanguage: initialListeningDirection.targetLanguage,
   turnDetection: "server_vad",
   pushToTalk: "idle",
   audioForwarding: false,
@@ -99,6 +108,28 @@ function getUserFriendlyError(error: unknown): string {
   return "翻译服务暂时不可用。";
 }
 
+function getLanguageProfileError(profile: LanguageProfile): string {
+  const validation = validateProviderLanguageProfile(CLIENT_PROVIDER_NAME, profile);
+
+  if (validation.ok) {
+    return "";
+  }
+
+  return validation.message === "Please select two different languages." ? "请选择两种不同语言。" : validation.message;
+}
+
+function withInitialLanguagePair(proxyUrl: string, pair: LanguagePair): string {
+  try {
+    const url = new URL(proxyUrl);
+    url.searchParams.set("sourceLanguage", pair.sourceLanguage);
+    url.searchParams.set("targetLanguage", pair.targetLanguage);
+    return url.toString();
+  } catch {
+    const separator = proxyUrl.includes("?") ? "&" : "?";
+    return `${proxyUrl}${separator}sourceLanguage=${encodeURIComponent(pair.sourceLanguage)}&targetLanguage=${encodeURIComponent(pair.targetLanguage)}`;
+  }
+}
+
 function isProxyStatusMessage(message: ClientRealtimeMessage): message is ProxyStatusMessage {
   return message.type === "proxy.status";
 }
@@ -139,16 +170,19 @@ export function useRealtimeTranslation() {
   const [currentTargetTranslation, setCurrentTargetTranslation] = useState("");
   const [finalTargetTranslation, setFinalTargetTranslation] = useState("");
   const [showLargeTarget, setShowLargeTarget] = useState(false);
-  const [sourceLanguage, setSourceLanguageState] = useState<LanguageCode>(DEFAULT_APP_LANGUAGE_PAIR.sourceLanguage);
-  const [targetLanguage, setTargetLanguageState] = useState<LanguageCode>(DEFAULT_APP_LANGUAGE_PAIR.targetLanguage);
+  const [userLanguage, setUserLanguageState] = useState<LanguageCode>(DEFAULT_LANGUAGE_PROFILE.userLanguage);
+  const [peerLanguage, setPeerLanguageState] = useState<LanguageCode>(DEFAULT_LANGUAGE_PROFILE.peerLanguage);
+  const [sourceLanguage, setSourceLanguageState] = useState<LanguageCode>(initialListeningDirection.sourceLanguage);
+  const [targetLanguage, setTargetLanguageState] = useState<LanguageCode>(initialListeningDirection.targetLanguage);
   const [history, setHistory] = useState<TranslationHistoryItem[]>([]);
   const [errorMessage, setErrorMessage] = useState("");
   const [debugInfo, setDebugInfo] = useState<DebugInfo>(initialDebugInfo);
   const socketRef = useRef<WebSocket | null>(null);
   const audioForwardingRef = useRef(false);
   const activeDirectionRef = useRef<TranslationDirection>("conversation");
-  const sourceLanguageRef = useRef<LanguageCode>(DEFAULT_APP_LANGUAGE_PAIR.sourceLanguage);
-  const targetLanguageRef = useRef<LanguageCode>(DEFAULT_APP_LANGUAGE_PAIR.targetLanguage);
+  const languageProfileRef = useRef<LanguageProfile>(DEFAULT_LANGUAGE_PROFILE);
+  const sourceLanguageRef = useRef<LanguageCode>(initialListeningDirection.sourceLanguage);
+  const targetLanguageRef = useRef<LanguageCode>(initialListeningDirection.targetLanguage);
   const turnDetectionRef = useRef<TurnDetectionMode>("server_vad");
   const conversationModeRef = useRef<ConversationMode>("LISTENING_TO_OTHER");
   const statusRef = useRef<AppStatus>("idle");
@@ -303,17 +337,58 @@ export function useRealtimeTranslation() {
 
   const requestDirection = useCallback(
     (direction: TranslationDirection) => {
+      const pair = getDirectionLanguagePair(languageProfileRef.current, direction);
+
       sendControl({
         type: "browser.set_direction",
         direction,
-        sourceLanguage: sourceLanguageRef.current,
-        targetLanguage: targetLanguageRef.current
+        sourceLanguage: pair.sourceLanguage,
+        targetLanguage: pair.targetLanguage
       });
     },
     [sendControl]
   );
 
-  const setSourceLanguage = useCallback(
+  const applyLanguageProfile = useCallback(
+    (profile: LanguageProfile, persist = true) => {
+      languageProfileRef.current = profile;
+      setUserLanguageState(profile.userLanguage);
+      setPeerLanguageState(profile.peerLanguage);
+
+      const listeningDirection = getListeningDirection(profile);
+      sourceLanguageRef.current = listeningDirection.sourceLanguage;
+      targetLanguageRef.current = listeningDirection.targetLanguage;
+      setSourceLanguageState(listeningDirection.sourceLanguage);
+      setTargetLanguageState(listeningDirection.targetLanguage);
+      patchDebugInfo({
+        sourceLanguage: listeningDirection.sourceLanguage,
+        targetLanguage: listeningDirection.targetLanguage
+      });
+
+      if (persist && typeof window !== "undefined") {
+        window.localStorage.setItem(LANGUAGE_PROFILE_STORAGE_KEY, serializeLanguageProfile(profile));
+      }
+    },
+    [patchDebugInfo]
+  );
+
+  const resetProfileCaptions = useCallback(() => {
+    setCurrentSourceTranscript("");
+    setFinalSourceTranscript("");
+    setCurrentTranslation("");
+    setCurrentMyTranscript("");
+    setFinalMyTranscript("");
+    setCurrentTargetTranslation("");
+    setFinalTargetTranslation("");
+    setShowLargeTarget(false);
+    pendingSourceRef.current = "";
+    pendingTranslationRef.current = "";
+    pendingMyTranscriptRef.current = "";
+    pendingTargetTranslationRef.current = "";
+    targetAudioChunksRef.current = [];
+  }, []);
+
+  const setUserLanguage = useCallback(
     (nextLanguage: LanguageCode) => {
       const canChangeLanguage =
         statusRef.current === "idle" ||
@@ -324,28 +399,18 @@ export function useRealtimeTranslation() {
         return;
       }
 
-      sourceLanguageRef.current = nextLanguage;
-      setSourceLanguageState(nextLanguage);
-      setErrorMessage(isSameLanguagePair(nextLanguage, targetLanguageRef.current) ? "源语言和目标语言不能相同。" : "");
-      patchDebugInfo({ sourceLanguage: nextLanguage });
-      setCurrentSourceTranscript("");
-      setFinalSourceTranscript("");
-      setCurrentTranslation("");
-      setCurrentMyTranscript("");
-      setFinalMyTranscript("");
-      setCurrentTargetTranslation("");
-      setFinalTargetTranslation("");
-      setShowLargeTarget(false);
-      pendingSourceRef.current = "";
-      pendingTranslationRef.current = "";
-      pendingMyTranscriptRef.current = "";
-      pendingTargetTranslationRef.current = "";
-      targetAudioChunksRef.current = [];
+      const nextProfile = {
+        ...languageProfileRef.current,
+        userLanguage: nextLanguage
+      };
+      applyLanguageProfile(nextProfile);
+      setErrorMessage(getLanguageProfileError(nextProfile));
+      resetProfileCaptions();
     },
-    [patchDebugInfo]
+    [applyLanguageProfile, resetProfileCaptions]
   );
 
-  const setTargetLanguage = useCallback(
+  const setPeerLanguage = useCallback(
     (nextLanguage: LanguageCode) => {
       const canChangeLanguage =
         statusRef.current === "idle" ||
@@ -356,21 +421,34 @@ export function useRealtimeTranslation() {
         return;
       }
 
-      targetLanguageRef.current = nextLanguage;
-      setTargetLanguageState(nextLanguage);
-      setErrorMessage(isSameLanguagePair(sourceLanguageRef.current, nextLanguage) ? "源语言和目标语言不能相同。" : "");
-      patchDebugInfo({ targetLanguage: nextLanguage });
-      setCurrentMyTranscript("");
-      setFinalMyTranscript("");
-      setCurrentTargetTranslation("");
-      setFinalTargetTranslation("");
-      setShowLargeTarget(false);
-      pendingMyTranscriptRef.current = "";
-      pendingTargetTranslationRef.current = "";
-      targetAudioChunksRef.current = [];
+      const nextProfile = {
+        ...languageProfileRef.current,
+        peerLanguage: nextLanguage
+      };
+      applyLanguageProfile(nextProfile);
+      setErrorMessage(getLanguageProfileError(nextProfile));
+      resetProfileCaptions();
     },
-    [patchDebugInfo]
+    [applyLanguageProfile, resetProfileCaptions]
   );
+
+  useEffect(() => {
+    const storedProfile = parseLanguageProfile(window.localStorage.getItem(LANGUAGE_PROFILE_STORAGE_KEY));
+
+    if (!storedProfile) {
+      return;
+    }
+
+    if (!validateProviderLanguageProfile(CLIENT_PROVIDER_NAME, storedProfile).ok) {
+      return;
+    }
+
+    const restoreTimer = window.setTimeout(() => {
+      applyLanguageProfile(storedProfile, false);
+    }, 0);
+
+    return () => window.clearTimeout(restoreTimer);
+  }, [applyLanguageProfile]);
 
   const restoreListenMode = useCallback(() => {
     if (statusRef.current === "idle" || statusRef.current === "stopping") {
@@ -536,6 +614,13 @@ export function useRealtimeTranslation() {
       setSourceLanguageState(message.sourceLanguage);
       targetLanguageRef.current = message.targetLanguage;
       setTargetLanguageState(message.targetLanguage);
+      const nextProfile = getProfileFromDirection(message.direction, {
+        sourceLanguage: message.sourceLanguage,
+        targetLanguage: message.targetLanguage
+      });
+      languageProfileRef.current = nextProfile;
+      setUserLanguageState(nextProfile.userLanguage);
+      setPeerLanguageState(nextProfile.peerLanguage);
       turnDetectionRef.current = message.turnDetection;
       patchDebugInfo({
         direction: message.direction,
@@ -769,8 +854,10 @@ export function useRealtimeTranslation() {
       return;
     }
 
-    if (isSameLanguagePair(sourceLanguageRef.current, targetLanguageRef.current)) {
-      setErrorMessage("源语言和目标语言不能相同。");
+    const profileError = getLanguageProfileError(languageProfileRef.current);
+
+    if (profileError) {
+      setErrorMessage(profileError);
       return;
     }
 
@@ -824,7 +911,10 @@ export function useRealtimeTranslation() {
         turnDetection: "server_vad"
       });
 
-      const proxyUrl = getBrowserRealtimeProxyUrl();
+      const proxyUrl = withInitialLanguagePair(
+        getBrowserRealtimeProxyUrl(),
+        getListeningDirection(languageProfileRef.current)
+      );
       let reconnectAttempts = 0;
       let reconnectTimer: number | null = null;
 
@@ -1019,16 +1109,19 @@ export function useRealtimeTranslation() {
       return;
     }
 
-    if (isSameLanguagePair(sourceLanguage, targetLanguage)) {
-      setErrorMessage("源语言和目标语言不能相同。");
+    const profileError = getLanguageProfileError(languageProfileRef.current);
+
+    if (profileError) {
+      setErrorMessage(profileError);
       return;
     }
 
     setErrorMessage("");
     setAudioForwarding(false);
     activeDirectionRef.current = "push_to_talk";
-    sourceLanguageRef.current = sourceLanguage;
-    targetLanguageRef.current = targetLanguage;
+    const pushToTalkDirection = getDirectionLanguagePair(languageProfileRef.current, "push_to_talk");
+    sourceLanguageRef.current = pushToTalkDirection.sourceLanguage;
+    targetLanguageRef.current = pushToTalkDirection.targetLanguage;
     turnDetectionRef.current = "manual";
     pttStartedAtRef.current = performance.now();
     pttAudioMsRef.current = 0;
@@ -1042,8 +1135,8 @@ export function useRealtimeTranslation() {
     setPushToTalkState("pressed");
     patchDebugInfo({
       direction: "push_to_talk",
-      sourceLanguage,
-      targetLanguage,
+      sourceLanguage: pushToTalkDirection.sourceLanguage,
+      targetLanguage: pushToTalkDirection.targetLanguage,
       turnDetection: "manual",
       pushToTalk: "pressed"
     });
@@ -1054,8 +1147,6 @@ export function useRealtimeTranslation() {
     patchDebugInfo,
     requestDirection,
     setAudioForwarding,
-    sourceLanguage,
-    targetLanguage,
     updateConversationMode
   ]);
 
@@ -1223,6 +1314,8 @@ export function useRealtimeTranslation() {
     canPushToTalk,
     isPushToTalkActive,
     isPushToTalkBusy,
+    userLanguage,
+    peerLanguage,
     sourceLanguage,
     targetLanguage,
     currentSourceTranscript,
@@ -1251,8 +1344,10 @@ export function useRealtimeTranslation() {
     recoverListening,
     clearCaptions,
     toggleMuted,
-    setSourceLanguage,
-    setTargetLanguage,
+    setUserLanguage,
+    setPeerLanguage,
+    setSourceLanguage: setUserLanguage,
+    setTargetLanguage: setPeerLanguage,
     replayTarget,
     showLargeTargetView: () => setShowLargeTarget(true),
     hideLargeTargetView: () => setShowLargeTarget(false)
