@@ -139,6 +139,8 @@ OPENAI_REALTIME_MODEL=gpt-realtime-translate
 
 Each user supplies their own provider credentials. API usage is billed directly by the selected provider. The repository maintainer does not provide shared paid credentials.
 
+OpenAI provider adapter support is implemented and covered by fixture/contract tests. Live OpenAI validation requires the user's own API credentials and explicit opt-in with `RUN_OPENAI_INTEGRATION_TEST=1`.
+
 ## Security Model
 
 ### API Key Safety
