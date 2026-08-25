@@ -110,7 +110,12 @@ export function mapOpenAITranslationEvent(rawEvent: unknown): ProviderServerEven
     return withCommonFields(event, { type: "response.audio.done" });
   }
 
-  if (type === "session.output_audio_transcript.done" || type === "response.done") {
+  if (
+    type === "session.output_audio_transcript.done" ||
+    type === "translation.completed" ||
+    type === "session.translation.completed" ||
+    type === "response.done"
+  ) {
     return withCommonFields(event, { type: "response.done" });
   }
 

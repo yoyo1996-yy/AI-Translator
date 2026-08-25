@@ -4,6 +4,8 @@ AI-Translator can use OpenAI Realtime Translation as an opt-in realtime provider
 
 Default deployments still use Bailian unless `TRANSLATION_PROVIDER=openai` is set.
 
+The adapter is implemented and covered by fixture/contract tests. Live validation requires the user's own OpenAI API credentials and explicit opt-in; default tests and CI do not call OpenAI.
+
 ## Configuration
 
 Set these variables on the Gateway/server only:
