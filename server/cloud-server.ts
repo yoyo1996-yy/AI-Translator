@@ -291,6 +291,15 @@ async function main() {
   const server = createServer((request, response) => {
     response.setHeader("Content-Disposition", "inline");
 
+    if (request.url === "/health" || request.url === "/_health") {
+      writeJson(response, 200, {
+        status: "ok",
+        buildVersion,
+        realtimePath
+      });
+      return;
+    }
+
     if (request.url === "/_health/app") {
       writeJson(response, 200, {
         ok: true,

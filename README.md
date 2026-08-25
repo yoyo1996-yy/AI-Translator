@@ -261,7 +261,11 @@ More details: [docs/android-app.md](docs/android-app.md).
 
 ## Deployment
 
-The current documented production path is Alibaba Cloud Function Compute:
+AI-Translator supports two self-hosted deployment paths.
+
+### Alibaba Function Compute
+
+The existing Alibaba Function Compute path remains supported:
 
 - Web Function.
 - Custom Runtime.
@@ -274,7 +278,36 @@ Deployment docs:
 - [docs/v0.3-mobile-deployment.md](docs/v0.3-mobile-deployment.md)
 - [deploy/aliyun-fc/README.md](deploy/aliyun-fc/README.md)
 
-Other deployment targets are possible as long as they can run a Node.js HTTP/WebSocket server and expose HTTPS/WSS publicly.
+### Docker / Self-Hosted
+
+The Docker deployment runs the same Gateway/Web service:
+
+```text
+Mobile / Web Client
+        |
+        v
+Self-hosted Gateway
+        |
+        v
+Provider Adapter
+        |
+        v
+AI Provider
+```
+
+Quick start with the mock provider:
+
+```bash
+docker compose -f deploy/docker/docker-compose.yml up --build
+```
+
+Docker docs:
+
+- [deploy/docker/README.md](deploy/docker/README.md)
+
+Docker can be used on hosts that support long-lived WebSocket connections, such as VPS hosts, container hosting platforms, or cloud container services.
+
+Users need their own AI provider credentials, their own Gateway, and are responsible for AI API and cloud resource costs. This project does not provide a shared public paid Gateway.
 
 ## Development
 

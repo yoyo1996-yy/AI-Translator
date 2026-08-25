@@ -1,0 +1,10 @@
+services:
+  ai-translator:
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile
+    env_file:
+      - ./env.example
+    ports:
+      - "${PORT:-9000}:9000"
+    restart: unless-stopped
