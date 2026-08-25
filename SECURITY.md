@@ -4,7 +4,7 @@
 
 Do not commit real API keys, workspace IDs, access tokens, private keys, or cloud credentials.
 
-Keep provider credentials such as `DASHSCOPE_API_KEY` and `DASHSCOPE_WORKSPACE_ID` only in server-side environment variables. Never place paid provider credentials in frontend code, Android assets, screenshots, public documentation, or Git history.
+Keep provider credentials such as `DASHSCOPE_API_KEY`, `DASHSCOPE_WORKSPACE_ID`, and `OPENAI_API_KEY` only in server-side environment variables. Never place paid provider credentials in frontend code, Android assets, screenshots, public documentation, or Git history.
 
 ## Gateway Access
 

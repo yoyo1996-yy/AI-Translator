@@ -47,6 +47,7 @@ RealtimeProvider
 Current adapters:
 
 - `server/providers/bailian-provider.ts`: production Bailian realtime adapter.
+- `server/providers/openai/openai-provider.ts`: optional OpenAI Realtime Translation adapter.
 - `server/providers/mock-provider.ts`: local test adapter with no external network calls.
 - `server/providers/test-provider.ts`: secondary lifecycle test adapter for validating provider extensibility.
 
@@ -56,7 +57,7 @@ Provider selection is centralized in `server/providers/index.ts`.
 TRANSLATION_PROVIDER=bailian
 ```
 
-Supported values are `bailian`, `mock`, and `test`.
+Supported values are `bailian`, `openai`, `mock`, and `test`.
 
 The default provider is `bailian`, so existing deployments keep the same behavior unless this variable is changed.
 

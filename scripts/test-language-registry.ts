@@ -145,6 +145,14 @@ function testSelectorOptionsComeFromCapabilities(): void {
   assert.deepEqual(optionCodes.sort(), ["en", "ja", "zh"]);
 }
 
+function testOpenAIProviderCapabilities(): void {
+  const capabilities = getProviderCapabilities("openai");
+
+  assert.deepEqual(capabilities.supportedTargetLanguages.sort(), ["en", "ja", "zh"]);
+  assert.equal(isSupportedLanguagePair(capabilities, { sourceLanguage: "zh", targetLanguage: "ja" }), true);
+  assert.equal(isSupportedLanguagePair(capabilities, { sourceLanguage: "fr", targetLanguage: "zh" }), false);
+}
+
 function testGatewayProtocolPairNotReversed(): void {
   assert.deepEqual(getProviderSessionLanguages("conversation", "ja", "zh"), {
     sourceLanguage: "ja",
@@ -169,6 +177,7 @@ function main(): void {
   testLanguageProfileRejected();
   testPersistedProfileRestored();
   testSelectorOptionsComeFromCapabilities();
+  testOpenAIProviderCapabilities();
   testGatewayProtocolPairNotReversed();
 
   console.log("Language registry tests: passed");

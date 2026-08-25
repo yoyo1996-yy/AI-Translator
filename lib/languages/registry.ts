@@ -26,7 +26,7 @@ export type LanguagePair = {
   targetLanguage: LanguageCode;
 };
 
-export type ProviderName = "bailian" | "mock" | "test";
+export type ProviderName = "bailian" | "mock" | "test" | "openai";
 
 export const AUTO_SOURCE_LANGUAGE_OPTION: LanguageOption = {
   code: "auto",
@@ -70,13 +70,14 @@ export const COMMON_REALTIME_PROVIDER_CAPABILITIES: RealtimeProviderCapabilities
 export const PROVIDER_CAPABILITIES: Record<ProviderName, RealtimeProviderCapabilities> = {
   bailian: COMMON_REALTIME_PROVIDER_CAPABILITIES,
   mock: COMMON_REALTIME_PROVIDER_CAPABILITIES,
-  test: COMMON_REALTIME_PROVIDER_CAPABILITIES
+  test: COMMON_REALTIME_PROVIDER_CAPABILITIES,
+  openai: COMMON_REALTIME_PROVIDER_CAPABILITIES
 };
 
 export function normalizeProviderName(value: string | undefined): ProviderName {
   const providerName = value?.trim().toLowerCase();
 
-  if (providerName === "mock" || providerName === "test") {
+  if (providerName === "mock" || providerName === "test" || providerName === "openai") {
     return providerName;
   }
 

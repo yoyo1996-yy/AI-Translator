@@ -86,6 +86,14 @@ DASHSCOPE_WORKSPACE_ID=
 DASHSCOPE_REGION=cn-beijing
 ```
 
+For OpenAI Realtime Translation:
+
+```env
+TRANSLATION_PROVIDER=openai
+OPENAI_API_KEY=
+OPENAI_REALTIME_MODEL=gpt-realtime-translate
+```
+
 Do not use the repository owner's Gateway or API credentials. The maintainer does not provide a shared paid AI API or Gateway.
 
 ## 8. Optional: Build Android

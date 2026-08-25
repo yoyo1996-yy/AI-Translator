@@ -102,10 +102,10 @@ function checkEnvStructure(): void {
   );
 }
 
-function getProviderName(): "bailian" | "mock" | "test" | "unsupported" {
+function getProviderName(): "bailian" | "mock" | "test" | "openai" | "unsupported" {
   const provider = (getTrimmedEnv("TRANSLATION_PROVIDER") || "bailian").toLowerCase();
 
-  if (provider === "bailian" || provider === "mock" || provider === "test") {
+  if (provider === "bailian" || provider === "mock" || provider === "test" || provider === "openai") {
     return provider;
   }
 
@@ -116,7 +116,7 @@ function checkProvider(): void {
   const provider = getProviderName();
 
   if (provider === "unsupported") {
-    add("FAIL", "TRANSLATION_PROVIDER", "Unsupported provider. Use bailian, mock, or test.");
+    add("FAIL", "TRANSLATION_PROVIDER", "Unsupported provider. Use bailian, mock, test, or openai.");
     return;
   }
 
@@ -124,6 +124,15 @@ function checkProvider(): void {
 
   if (provider === "mock" || provider === "test") {
     add("PASS", "provider credentials", "No paid provider credentials required.");
+    return;
+  }
+
+  if (provider === "openai") {
+    const apiKey = getCleanSecretEnv("OPENAI_API_KEY");
+    const model = getTrimmedEnv("OPENAI_REALTIME_MODEL") || "gpt-realtime-translate";
+
+    add(apiKey ? "PASS" : "FAIL", "OPENAI_API_KEY", apiKey ? "configured" : "missing");
+    add("PASS", "OPENAI_REALTIME_MODEL", model === "gpt-realtime-translate" ? "default" : "configured");
     return;
   }
 

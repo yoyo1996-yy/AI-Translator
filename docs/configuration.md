@@ -42,6 +42,20 @@ DASHSCOPE_REGION=cn-beijing
 
 The Gateway only reports whether these values are `configured` or `missing`. It must not print the real API key, token, or workspace value.
 
+## OpenAI Provider
+
+Set `TRANSLATION_PROVIDER=openai` only when you are ready to use your own OpenAI Realtime Translation credentials.
+
+Required server-side variables:
+
+```env
+TRANSLATION_PROVIDER=openai
+OPENAI_API_KEY=
+OPENAI_REALTIME_MODEL=gpt-realtime-translate
+```
+
+`OPENAI_REALTIME_MODEL` is optional and defaults to `gpt-realtime-translate`. The Gateway only reports whether `OPENAI_API_KEY` is `configured` or `missing`; it must not print the real key.
+
 ## Gateway
 
 Common Gateway variables:
@@ -95,11 +109,12 @@ Supported values:
 
 ```env
 TRANSLATION_PROVIDER=bailian
+TRANSLATION_PROVIDER=openai
 TRANSLATION_PROVIDER=mock
 TRANSLATION_PROVIDER=test
 ```
 
-Use `mock` for free local smoke tests. Use `bailian` for the current production realtime provider. Use `test` only for adapter lifecycle validation.
+Use `mock` for free local smoke tests. Use `bailian` for the default production realtime provider. Use `openai` for OpenAI Realtime Translation with your own server-side credentials. Use `test` only for adapter lifecycle validation.
 
 ## Languages
 

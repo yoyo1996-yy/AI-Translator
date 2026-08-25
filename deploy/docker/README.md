@@ -63,7 +63,7 @@ TRANSLATION_PROVIDER=mock
 
 This lets new users verify the container without paid AI API credentials and without consuming another person's resources.
 
-## Production Provider
+## Production Providers
 
 To use Bailian, create your own environment file from `env.example` and provide your own server-side credentials:
 
@@ -72,6 +72,14 @@ TRANSLATION_PROVIDER=bailian
 DASHSCOPE_API_KEY=
 DASHSCOPE_WORKSPACE_ID=
 DASHSCOPE_REGION=cn-beijing
+```
+
+To use OpenAI Realtime Translation, set:
+
+```env
+TRANSLATION_PROVIDER=openai
+OPENAI_API_KEY=
+OPENAI_REALTIME_MODEL=gpt-realtime-translate
 ```
 
 Never bake real secrets into the Docker image. Pass them at runtime through Docker Compose, your container platform, or another trusted secret manager.

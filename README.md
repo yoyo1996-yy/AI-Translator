@@ -27,7 +27,7 @@ Current app focus:
 - Multilingual Conversation Mode for other-person speech to my-language playback.
 - Push-to-talk translation mode for my-language speech to other-person-language playback.
 - Server-side Gateway for hiding provider API keys from clients.
-- Pluggable realtime provider layer with Bailian and mock providers.
+- Pluggable realtime provider layer with Bailian, OpenAI, mock, and test providers.
 - Optional Gateway access token authentication with `APP_ACCESS_TOKEN`.
 - Basic Gateway resource limits and in-memory rate limiting.
 - Self-host deployment preparation for Alibaba Cloud Function Compute Custom Runtime ZIP packages.
@@ -90,7 +90,7 @@ The Gateway is responsible for:
 - Translation direction state.
 - Mapping neutral Gateway operations to the selected provider adapter.
 
-The Provider Layer is designed to be extensible. The current production provider is Bailian realtime. A mock provider is included for local tests. Other providers can be added by implementing the realtime provider interface described in [docs/provider-architecture.md](docs/provider-architecture.md).
+The Provider Layer is designed to be extensible. The default production provider is Bailian realtime. OpenAI Realtime Translation is available as an opt-in provider, and mock/test providers are included for local validation. Other providers can be added by implementing the realtime provider interface described in [docs/provider-architecture.md](docs/provider-architecture.md).
 
 Language availability is managed through a shared language capability registry. The web client, Gateway, and provider adapters use the same language definitions and provider capability declarations.
 
@@ -101,6 +101,7 @@ The runtime supports pluggable AI providers.
 Current providers:
 
 - Bailian realtime provider.
+- OpenAI Realtime Translation provider.
 - Mock provider.
 - Secondary test provider for validating adapter extensibility.
 
@@ -113,10 +114,30 @@ TRANSLATION_PROVIDER=<provider>
 Available values:
 
 - `bailian`
+- `openai`
 - `mock`
 - `test`
 
 The default provider is `bailian`, so existing deployments keep the same behavior unless this variable is changed.
+
+Bailian example:
+
+```env
+TRANSLATION_PROVIDER=bailian
+DASHSCOPE_API_KEY=
+DASHSCOPE_WORKSPACE_ID=
+DASHSCOPE_REGION=cn-beijing
+```
+
+OpenAI example:
+
+```env
+TRANSLATION_PROVIDER=openai
+OPENAI_API_KEY=
+OPENAI_REALTIME_MODEL=gpt-realtime-translate
+```
+
+Each user supplies their own provider credentials. API usage is billed directly by the selected provider. The repository maintainer does not provide shared paid credentials.
 
 ## Security Model
 
@@ -133,7 +154,7 @@ Do not put API keys in:
 - Public documentation.
 - Git history.
 
-Provider credentials such as `DASHSCOPE_API_KEY` and `DASHSCOPE_WORKSPACE_ID` should only be configured as server-side environment variables.
+Provider credentials such as `DASHSCOPE_API_KEY`, `DASHSCOPE_WORKSPACE_ID`, and `OPENAI_API_KEY` should only be configured as server-side environment variables.
 
 ### Gateway Trust Boundary
 
@@ -212,6 +233,14 @@ DASHSCOPE_WORKSPACE_ID=
 DASHSCOPE_REGION=cn-beijing
 ```
 
+Or choose OpenAI Realtime Translation:
+
+```env
+TRANSLATION_PROVIDER=openai
+OPENAI_API_KEY=
+OPENAI_REALTIME_MODEL=gpt-realtime-translate
+```
+
 Do not use the repository owner's Gateway or API credentials.
 
 Local development uses:
@@ -237,13 +266,15 @@ Important variables:
 DASHSCOPE_API_KEY=
 DASHSCOPE_WORKSPACE_ID=
 DASHSCOPE_REGION=cn-beijing
+OPENAI_API_KEY=
+OPENAI_REALTIME_MODEL=gpt-realtime-translate
 TRANSLATION_PROVIDER=mock
 NEXT_PUBLIC_REALTIME_PROXY_URL=
 REALTIME_PROXY_PATH=/realtime
 APP_ACCESS_TOKEN=
 ```
 
-Use `TRANSLATION_PROVIDER=mock` for first-time setup and smoke tests. Set `TRANSLATION_PROVIDER=bailian` only when configuring your own real provider credentials.
+Use `TRANSLATION_PROVIDER=mock` for first-time setup and smoke tests. Set `TRANSLATION_PROVIDER=bailian` or `TRANSLATION_PROVIDER=openai` only when configuring your own real provider credentials.
 
 For local development, `NEXT_PUBLIC_REALTIME_PROXY_URL` can stay empty. The app falls back to the local Gateway.
 
@@ -383,6 +414,7 @@ npm run test:fc-env
 - [Configuration](docs/configuration.md)
 - [Troubleshooting](docs/troubleshooting.md)
 - [Realtime provider architecture](docs/provider-architecture.md)
+- [OpenAI provider](docs/providers/openai.md)
 - [Android app](docs/android-app.md)
 - [V0.2 end-to-end checklist](docs/v0.2-e2e-test-checklist.md)
 - [V0.2 release notes](docs/v0.2-release-notes.md)
@@ -399,8 +431,9 @@ Planned improvements:
 
 ## Known Limitations
 
-- The current production realtime provider is Bailian.
-- Other providers require their own realtime adapter and compatible speech/audio capability.
+- The default production realtime provider is Bailian.
+- OpenAI Realtime Translation is opt-in and requires a server-side `OPENAI_API_KEY`.
+- Additional providers require their own realtime adapter and compatible speech/audio capability.
 - Push-To-Talk Mode submits my-language turns rather than running as continuous always-on two-way speech.
 - Browser audio playback can require a user gesture depending on the browser.
 - In-memory Gateway limits and rate limits do not coordinate across multiple server instances.

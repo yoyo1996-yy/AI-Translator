@@ -5,6 +5,9 @@ services:
       dockerfile: deploy/docker/Dockerfile
     env_file:
       - ./env.example
+    environment:
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_REALTIME_MODEL: ${OPENAI_REALTIME_MODEL:-gpt-realtime-translate}
     ports:
       - "${PORT:-9000}:9000"
     restart: unless-stopped

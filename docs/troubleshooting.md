@@ -52,6 +52,13 @@ DASHSCOPE_WORKSPACE_ID=
 DASHSCOPE_REGION=cn-beijing
 ```
 
+For `TRANSLATION_PROVIDER=openai`, configure:
+
+```env
+OPENAI_API_KEY=
+OPENAI_REALTIME_MODEL=gpt-realtime-translate
+```
+
 Only store these values in server-side environment variables or local ignored files.
 
 ## Provider Authentication
@@ -74,6 +81,8 @@ docker compose -f deploy/docker/docker-compose.yml up --build
 ```
 
 Check that your `.env` or compose environment sets `TRANSLATION_PROVIDER=mock` for first validation, then configure your own real provider later.
+
+For OpenAI, see [docs/providers/openai.md](providers/openai.md).
 
 ## Android Gradle Issues
 
