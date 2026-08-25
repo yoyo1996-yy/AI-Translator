@@ -169,7 +169,9 @@ async function scenarioB() {
 
   if (
     !output.includes("Missing required environment variables:") ||
-    !output.includes("DASHSCOPE_API_KEY and/or DASHSCOPE_WORKSPACE_ID.")
+    !output.includes("- DASHSCOPE_API_KEY") ||
+    !output.includes("Provider: bailian") ||
+    !output.includes("See: docs/configuration.md")
   ) {
     throw new Error("Scenario B failed: missing-env message was not found.");
   }

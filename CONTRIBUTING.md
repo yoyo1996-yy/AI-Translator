@@ -6,11 +6,17 @@ Thank you for considering a contribution.
 
 Before opening an issue, please check existing issues and include:
 
+- Output from `npm run doctor`.
+- Node.js version.
+- Provider name, such as `mock`, `bailian`, or `test`.
+- Deployment type, such as local development, Docker, Alibaba Function Compute, web, or Android.
 - What you expected to happen.
 - What actually happened.
 - Your operating system, browser or Android version.
 - Reproduction steps.
 - Logs with API keys and tokens removed.
+
+Do not upload API keys, access tokens, signing keys, private provider credentials, or sensitive private Gateway URLs.
 
 ## Pull Requests
 

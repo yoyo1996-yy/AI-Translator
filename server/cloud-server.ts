@@ -146,7 +146,7 @@ function checkBailianWebSocket(): Promise<{
       ok: false,
       stage: "env",
       elapsedMs: 0,
-      message: "DASHSCOPE_API_KEY and/or DASHSCOPE_WORKSPACE_ID is not loaded."
+      message: "Missing required environment variable(s) for provider bailian. See docs/configuration.md."
     });
   }
 

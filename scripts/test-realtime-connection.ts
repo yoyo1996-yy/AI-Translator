@@ -224,7 +224,7 @@ async function main(): Promise<void> {
     console.log("Realtime connection: failed");
     console.log("HTTP/WebSocket status code: not requested");
     console.log("Aliyun error code: not requested");
-    console.log("message: Missing required environment variables: DASHSCOPE_API_KEY and/or DASHSCOPE_WORKSPACE_ID.");
+    console.log("message: Missing required environment variable(s) for provider bailian. See docs/configuration.md.");
     process.exitCode = 1;
     return;
   }

@@ -143,7 +143,7 @@ Requirements:
 
 - Node.js 20 or newer.
 - npm.
-- AI provider credentials for the realtime provider you use.
+- AI provider credentials only when you switch from the mock provider to a real provider.
 
 Clone and install:
 
@@ -165,12 +165,22 @@ On Windows PowerShell:
 Copy-Item .env.example .env.local
 ```
 
-Fill in your own server-side credentials in `.env.local`:
+For the first no-cost validation, keep:
 
 ```env
-DASHSCOPE_API_KEY=
-DASHSCOPE_WORKSPACE_ID=
-DASHSCOPE_REGION=cn-beijing
+TRANSLATION_PROVIDER=mock
+```
+
+Run diagnostics:
+
+```bash
+npm run doctor
+```
+
+Run the free mock Gateway smoke test:
+
+```bash
+npm run test:gateway
 ```
 
 Run the local development app:
@@ -184,6 +194,17 @@ Open:
 ```text
 http://127.0.0.1:3000/
 ```
+
+After the mock setup works, configure your own AI provider credentials:
+
+```env
+TRANSLATION_PROVIDER=bailian
+DASHSCOPE_API_KEY=
+DASHSCOPE_WORKSPACE_ID=
+DASHSCOPE_REGION=cn-beijing
+```
+
+Do not use the repository owner's Gateway or API credentials.
 
 Local development uses:
 
@@ -208,11 +229,13 @@ Important variables:
 DASHSCOPE_API_KEY=
 DASHSCOPE_WORKSPACE_ID=
 DASHSCOPE_REGION=cn-beijing
-TRANSLATION_PROVIDER=bailian
+TRANSLATION_PROVIDER=mock
 NEXT_PUBLIC_REALTIME_PROXY_URL=
 REALTIME_PROXY_PATH=/realtime
 APP_ACCESS_TOKEN=
 ```
+
+Use `TRANSLATION_PROVIDER=mock` for first-time setup and smoke tests. Set `TRANSLATION_PROVIDER=bailian` only when configuring your own real provider credentials.
 
 For local development, `NEXT_PUBLIC_REALTIME_PROXY_URL` can stay empty. The app falls back to the local Gateway.
 
@@ -309,11 +332,23 @@ Docker can be used on hosts that support long-lived WebSocket connections, such 
 
 Users need their own AI provider credentials, their own Gateway, and are responsible for AI API and cloud resource costs. This project does not provide a shared public paid Gateway.
 
+## Cost Responsibility
+
+AI-Translator source code is open source. Users are responsible for:
+
+- Their AI provider API usage.
+- Their Gateway hosting.
+- Their cloud resources.
+
+The project maintainer does not provide a shared paid AI API or Gateway.
+
 ## Development
 
 Common commands:
 
 ```bash
+npm run doctor
+npm run test:gateway
 npm test
 npm run lint
 npm run build
@@ -335,6 +370,9 @@ npm run test:fc-env
 ## Documentation
 
 - [Gateway security](docs/security.md)
+- [Getting started](docs/getting-started.md)
+- [Configuration](docs/configuration.md)
+- [Troubleshooting](docs/troubleshooting.md)
 - [Realtime provider architecture](docs/provider-architecture.md)
 - [Android app](docs/android-app.md)
 - [V0.2 end-to-end checklist](docs/v0.2-e2e-test-checklist.md)

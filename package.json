@@ -18,7 +18,10 @@
     "app:android:open": "npx cap open android",
     "build": "next build",
     "lint": "eslint . --max-warnings=0",
+    "doctor": "tsx scripts/doctor.ts",
+    "setup:check": "npm run doctor",
     "test": "tsx scripts/test-gateway-security.ts",
+    "test:gateway": "tsx scripts/test-gateway.ts",
     "test:gateway-security": "tsx scripts/test-gateway-security.ts",
     "test:fc-env": "node scripts/test-fc-env.mjs",
     "test:connection": "tsx scripts/test-realtime-connection.ts"

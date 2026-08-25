@@ -100,10 +100,21 @@ function loadBailianProviderConfig(): BailianProviderConfig {
 
 export function assertBailianProviderConfig(): void {
   const config = loadBailianProviderConfig();
+  const missingVariables = [
+    ["DASHSCOPE_API_KEY", config.apiKey],
+    ["DASHSCOPE_WORKSPACE_ID", config.workspaceId],
+    ["DASHSCOPE_REGION", config.region]
+  ]
+    .filter(([, value]) => !value)
+    .map(([name]) => name);
 
-  if (!config.apiKey || !config.workspaceId) {
+  if (missingVariables.length > 0) {
     console.error("Missing required environment variables:");
-    console.error("DASHSCOPE_API_KEY and/or DASHSCOPE_WORKSPACE_ID.");
+    for (const name of missingVariables) {
+      console.error(`- ${name}`);
+    }
+    console.error("Provider: bailian");
+    console.error("See: docs/configuration.md");
     process.exit(1);
   }
 }
