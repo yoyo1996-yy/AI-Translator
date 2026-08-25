@@ -34,7 +34,13 @@ Current app focus:
 
 ## Supported Languages
 
-Supports multiple languages through configurable source and target language selection.
+Current validated languages:
+
+- Chinese (`zh`)
+- Japanese (`ja`)
+- English (`en`)
+
+The architecture is extensible to additional languages, but actual availability depends on the selected AI provider and its declared capabilities.
 
 ## Architecture
 
@@ -85,6 +91,8 @@ The Gateway is responsible for:
 - Mapping neutral Gateway operations to the selected provider adapter.
 
 The Provider Layer is designed to be extensible. The current production provider is Bailian realtime. A mock provider is included for local tests. Other providers can be added by implementing the realtime provider interface described in [docs/provider-architecture.md](docs/provider-architecture.md).
+
+Language availability is managed through a shared language capability registry. The web client, Gateway, and provider adapters use the same language definitions and provider capability declarations.
 
 ## Provider Support
 

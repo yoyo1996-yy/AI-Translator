@@ -4,6 +4,7 @@ import type {
   TranslationDirection,
   TurnDetectionMode
 } from "../../types/realtime";
+import type { RealtimeProviderCapabilities } from "../../lib/languages/registry";
 
 export type RealtimeProviderSessionOptions = {
   direction: TranslationDirection;
@@ -72,6 +73,7 @@ export interface RealtimeProvider {
   terminate(): void;
   isOpen(): boolean;
   isConnecting(): boolean;
+  getCapabilities(): RealtimeProviderCapabilities;
   onEvent(handler: RealtimeProviderEventHandler): void;
 }
 

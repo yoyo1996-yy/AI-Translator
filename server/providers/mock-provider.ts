@@ -1,4 +1,6 @@
 import type { RealtimeProvider, RealtimeProviderEvent, RealtimeProviderEventHandler } from "./interface";
+import { getProviderCapabilities } from "../../lib/languages/registry";
+import type { RealtimeProviderCapabilities } from "../../lib/languages/registry";
 
 export class MockRealtimeProvider implements RealtimeProvider {
   readonly name = "mock";
@@ -9,6 +11,10 @@ export class MockRealtimeProvider implements RealtimeProvider {
 
   onEvent(handler: RealtimeProviderEventHandler): void {
     this.handler = handler;
+  }
+
+  getCapabilities(): RealtimeProviderCapabilities {
+    return getProviderCapabilities("mock");
   }
 
   connect(): void {

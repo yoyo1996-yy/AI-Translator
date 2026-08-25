@@ -7,6 +7,8 @@ import {
   PROXY_PORT,
   SESSION_FINISH_TIMEOUT_MS
 } from "../lib/config/realtime";
+import { DEFAULT_APP_LANGUAGE_PAIR } from "../lib/languages/registry";
+import { validateProviderLanguagePair } from "./language-session";
 import {
   type GatewaySecurityConfig,
   type GatewaySecurityRuntime,
@@ -271,8 +273,8 @@ export function attachRealtimeProxy(
 
   let providerSession: RealtimeProvider | null = null;
   let currentDirection: TranslationDirection = "conversation";
-  let currentSourceLanguage: LanguageCode = "zh";
-  let currentTargetLanguage: LanguageCode = "ja";
+  let currentSourceLanguage: LanguageCode = DEFAULT_APP_LANGUAGE_PAIR.sourceLanguage;
+  let currentTargetLanguage: LanguageCode = DEFAULT_APP_LANGUAGE_PAIR.targetLanguage;
   let currentTurnDetection: TurnDetectionMode = "server_vad";
   let currentSessionReady = false;
   let pendingSwitchDirection: TranslationDirection | null = null;
@@ -453,6 +455,25 @@ export function attachRealtimeProxy(
     });
 
     const provider = providerFactory();
+    const languageValidation = validateProviderLanguagePair(
+      provider.name,
+      provider.getCapabilities(),
+      direction,
+      currentSourceLanguage,
+      currentTargetLanguage
+    );
+
+    if (!languageValidation.ok) {
+      safeSend(browserSocket, {
+        type: "proxy.error",
+        gatewayCode: languageValidation.gatewayCode,
+        message: languageValidation.message
+      });
+      log(`[Provider] rejected language pair ${languageValidation.providerPair.sourceLanguage} -> ${languageValidation.providerPair.targetLanguage}`);
+      setTimeout(closeBrowser, 50);
+      return;
+    }
+
     providerSession = provider;
     const providerConnectTimeoutMs = Number.parseInt(
       getTrimmedEnv("PROVIDER_CONNECT_TIMEOUT_MS") || getTrimmedEnv("BAILIAN_CONNECT_TIMEOUT_MS") || "45000",
@@ -481,10 +502,8 @@ export function attachRealtimeProxy(
 
       switch (providerEvent.type) {
         case "provider_connected":
-          const providerSourceLanguage =
-            direction === "conversation" ? currentTargetLanguage : currentSourceLanguage;
-          const providerTargetLanguage =
-            direction === "conversation" ? currentSourceLanguage : currentTargetLanguage;
+          const providerSourceLanguage = languageValidation.providerPair.sourceLanguage;
+          const providerTargetLanguage = languageValidation.providerPair.targetLanguage;
 
           log("[Provider] connected");
           log(
@@ -744,6 +763,23 @@ export function attachRealtimeProxy(
       if (message.type === "browser.set_direction") {
         const nextSourceLanguage = message.sourceLanguage ?? currentSourceLanguage;
         const nextTargetLanguage = message.targetLanguage ?? currentTargetLanguage;
+        const nextProviderPairValidation = validateProviderLanguagePair(
+          providerSession?.name ?? "unknown",
+          providerSession?.getCapabilities() ?? providerFactory().getCapabilities(),
+          message.direction,
+          nextSourceLanguage,
+          nextTargetLanguage
+        );
+
+        if (!nextProviderPairValidation.ok) {
+          safeSend(browserSocket, {
+            type: "proxy.error",
+            gatewayCode: nextProviderPairValidation.gatewayCode,
+            message: nextProviderPairValidation.message
+          });
+          return;
+        }
+
         const sameSessionConfig =
           message.direction === currentDirection &&
           nextSourceLanguage === currentSourceLanguage &&

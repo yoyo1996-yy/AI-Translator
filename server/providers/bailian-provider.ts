@@ -6,6 +6,8 @@ import {
   REALTIME_MODEL,
   normalizeDashScopeRegion
 } from "../../lib/config/realtime";
+import { getProviderCapabilities } from "../../lib/languages/registry";
+import type { RealtimeProviderCapabilities } from "../../lib/languages/registry";
 import type { ProviderServerEvent } from "../../types/realtime";
 import {
   ProviderAuthenticationError,
@@ -124,10 +126,14 @@ function getEndpoint(config: BailianProviderConfig): string {
   return `wss://${config.workspaceId}.${config.region}.maas.aliyuncs.com/api-ws/v1/realtime?model=${encodedModel}`;
 }
 
+function toBailianLanguageCode(languageCode: string): string {
+  return languageCode;
+}
+
 function createSessionUpdateEvent(options: RealtimeProviderSessionOptions) {
   const isPushToTalk = options.direction === "push_to_talk";
   const transcriptionLanguage =
-    options.sourceLanguage && options.sourceLanguage !== "auto" ? { language: options.sourceLanguage } : {};
+    options.sourceLanguage && options.sourceLanguage !== "auto" ? { language: toBailianLanguageCode(options.sourceLanguage) } : {};
 
   return {
     event_id: `event_${randomUUID()}`,
@@ -142,7 +148,7 @@ function createSessionUpdateEvent(options: RealtimeProviderSessionOptions) {
         ...transcriptionLanguage
       },
       translation: {
-        language: options.targetLanguage,
+        language: toBailianLanguageCode(options.targetLanguage),
         ...(Object.keys(options.corpusPhrases).length > 0
           ? {
               corpus: {
@@ -197,6 +203,10 @@ export class BailianRealtimeProvider implements RealtimeProvider {
 
   onEvent(handler: RealtimeProviderEventHandler): void {
     this.handler = handler;
+  }
+
+  getCapabilities(): RealtimeProviderCapabilities {
+    return getProviderCapabilities("bailian");
   }
 
   connect(): void {

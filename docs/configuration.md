@@ -73,9 +73,12 @@ For local web development, this can stay empty:
 
 ```env
 NEXT_PUBLIC_REALTIME_PROXY_URL=
+NEXT_PUBLIC_TRANSLATION_PROVIDER=
 ```
 
 When empty, the web client uses the local Gateway in development or infers `wss://<current-host>/realtime` on HTTPS deployments.
+
+`NEXT_PUBLIC_TRANSLATION_PROVIDER` is optional and contains only a provider name, not a secret. It lets the frontend language selector use the same provider capability registry as the Gateway. Leave it empty for Bailian-compatible language options.
 
 For Android builds, configure your own Gateway URL during asset sync/build:
 
@@ -97,6 +100,18 @@ TRANSLATION_PROVIDER=test
 ```
 
 Use `mock` for free local smoke tests. Use `bailian` for the current production realtime provider. Use `test` only for adapter lifecycle validation.
+
+## Languages
+
+Current validated languages:
+
+- Chinese (`zh`)
+- Japanese (`ja`)
+- English (`en`)
+
+The UI language selector is generated from the selected provider's language capabilities. Additional languages can be added to the language registry, but they should not be documented as available until a provider adapter declares and verifies support.
+
+The Gateway rejects unsupported language pairs before starting a provider session. `sourceLanguage` and `targetLanguage` must be different.
 
 ## Security
 

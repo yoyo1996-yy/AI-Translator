@@ -1,26 +1,17 @@
-import type { LanguageCode } from "../../types/realtime";
+import {
+  getLanguageLabel,
+  normalizeProviderName,
+  getSourceLanguageOptions,
+  getTargetLanguageOptions
+} from "../languages/registry";
+import type { LanguageOption, ProviderName } from "../languages/registry";
 
-export type LanguageOption = {
-  code: LanguageCode;
-  label: string;
-};
+export type { LanguageOption };
+export { getLanguageLabel };
 
-export const SOURCE_LANGUAGE_OPTIONS: LanguageOption[] = [
-  { code: "zh", label: "中文" },
-  { code: "auto", label: "Auto" },
-  { code: "en", label: "English" },
-  { code: "ja", label: "日本語" }
-];
-
-export const TARGET_LANGUAGE_OPTIONS: LanguageOption[] = [
-  { code: "ja", label: "日本語" },
-  { code: "en", label: "English" },
-  { code: "zh", label: "中文" }
-];
-
-export function getLanguageLabel(languageCode: LanguageCode): string {
-  return (
-    [...SOURCE_LANGUAGE_OPTIONS, ...TARGET_LANGUAGE_OPTIONS].find((option) => option.code === languageCode)?.label ??
-    languageCode
-  );
+function getClientProviderName(): ProviderName {
+  return normalizeProviderName(process.env.NEXT_PUBLIC_TRANSLATION_PROVIDER);
 }
+
+export const SOURCE_LANGUAGE_OPTIONS: LanguageOption[] = getSourceLanguageOptions(getClientProviderName());
+export const TARGET_LANGUAGE_OPTIONS: LanguageOption[] = getTargetLanguageOptions(getClientProviderName());

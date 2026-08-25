@@ -4,6 +4,8 @@ import type {
   RealtimeProviderEventHandler,
   RealtimeProviderSessionOptions
 } from "./interface";
+import { getProviderCapabilities } from "../../lib/languages/registry";
+import type { RealtimeProviderCapabilities } from "../../lib/languages/registry";
 
 const TEST_AUDIO_DELTA = Buffer.from([0, 0, 0, 0]).toString("base64");
 
@@ -19,6 +21,10 @@ export class TestRealtimeProvider implements RealtimeProvider {
 
   onEvent(handler: RealtimeProviderEventHandler): void {
     this.handler = handler;
+  }
+
+  getCapabilities(): RealtimeProviderCapabilities {
+    return getProviderCapabilities("test");
   }
 
   connect(): void {

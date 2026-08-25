@@ -49,6 +49,18 @@ Supported values are `bailian`, `mock`, and `test`.
 
 The default provider is `bailian`, so existing deployments keep the same behavior unless this variable is changed.
 
+## Language Capabilities
+
+Provider adapters expose language support through `getCapabilities()`.
+
+The shared language registry defines the public language codes and display labels. Provider-specific language code mappings must stay inside the provider adapter. The UI and Gateway should use public language codes such as `zh`, `ja`, and `en`, not provider-specific model codes.
+
+Current validated languages:
+
+- Chinese (`zh`)
+- Japanese (`ja`)
+- English (`en`)
+
 ## Adding Another Provider
 
 To add another provider:
@@ -56,6 +68,7 @@ To add another provider:
 1. Create a new adapter that implements `RealtimeProvider`.
 2. Translate neutral Gateway calls such as `updateSession`, `sendAudio`, `commitAudio`, and `finishSession` into that provider's protocol.
 3. Translate provider events back into the Gateway-compatible event stream expected by the current client.
-4. Add focused tests using the adapter through `providerFactory`.
+4. Declare provider language capabilities with `getCapabilities()`.
+5. Add focused tests using the adapter through `providerFactory`.
 
 Do not expose provider API keys to frontend, Android assets, or public repository files.

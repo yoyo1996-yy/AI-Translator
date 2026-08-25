@@ -9,6 +9,10 @@ import {
   RECONNECT_MAX_DELAY_MS,
   getBrowserRealtimeProxyUrl
 } from "../lib/config/realtime";
+import {
+  DEFAULT_APP_LANGUAGE_PAIR,
+  isSameLanguagePair
+} from "../lib/languages/registry";
 import type {
   AppStatus,
   ClientRealtimeMessage,
@@ -38,8 +42,8 @@ const initialDebugInfo: DebugInfo = {
   audioContext: "unavailable",
   realtimeSession: "Disconnected",
   direction: "conversation",
-  sourceLanguage: "zh",
-  targetLanguage: "ja",
+  sourceLanguage: DEFAULT_APP_LANGUAGE_PAIR.sourceLanguage,
+  targetLanguage: DEFAULT_APP_LANGUAGE_PAIR.targetLanguage,
   turnDetection: "server_vad",
   pushToTalk: "idle",
   audioForwarding: false,
@@ -135,16 +139,16 @@ export function useRealtimeTranslation() {
   const [currentTargetTranslation, setCurrentTargetTranslation] = useState("");
   const [finalTargetTranslation, setFinalTargetTranslation] = useState("");
   const [showLargeTarget, setShowLargeTarget] = useState(false);
-  const [sourceLanguage, setSourceLanguageState] = useState<LanguageCode>("zh");
-  const [targetLanguage, setTargetLanguageState] = useState<LanguageCode>("ja");
+  const [sourceLanguage, setSourceLanguageState] = useState<LanguageCode>(DEFAULT_APP_LANGUAGE_PAIR.sourceLanguage);
+  const [targetLanguage, setTargetLanguageState] = useState<LanguageCode>(DEFAULT_APP_LANGUAGE_PAIR.targetLanguage);
   const [history, setHistory] = useState<TranslationHistoryItem[]>([]);
   const [errorMessage, setErrorMessage] = useState("");
   const [debugInfo, setDebugInfo] = useState<DebugInfo>(initialDebugInfo);
   const socketRef = useRef<WebSocket | null>(null);
   const audioForwardingRef = useRef(false);
   const activeDirectionRef = useRef<TranslationDirection>("conversation");
-  const sourceLanguageRef = useRef<LanguageCode>("zh");
-  const targetLanguageRef = useRef<LanguageCode>("ja");
+  const sourceLanguageRef = useRef<LanguageCode>(DEFAULT_APP_LANGUAGE_PAIR.sourceLanguage);
+  const targetLanguageRef = useRef<LanguageCode>(DEFAULT_APP_LANGUAGE_PAIR.targetLanguage);
   const turnDetectionRef = useRef<TurnDetectionMode>("server_vad");
   const conversationModeRef = useRef<ConversationMode>("LISTENING_TO_OTHER");
   const statusRef = useRef<AppStatus>("idle");
@@ -322,6 +326,7 @@ export function useRealtimeTranslation() {
 
       sourceLanguageRef.current = nextLanguage;
       setSourceLanguageState(nextLanguage);
+      setErrorMessage(isSameLanguagePair(nextLanguage, targetLanguageRef.current) ? "源语言和目标语言不能相同。" : "");
       patchDebugInfo({ sourceLanguage: nextLanguage });
       setCurrentSourceTranscript("");
       setFinalSourceTranscript("");
@@ -353,6 +358,7 @@ export function useRealtimeTranslation() {
 
       targetLanguageRef.current = nextLanguage;
       setTargetLanguageState(nextLanguage);
+      setErrorMessage(isSameLanguagePair(sourceLanguageRef.current, nextLanguage) ? "源语言和目标语言不能相同。" : "");
       patchDebugInfo({ targetLanguage: nextLanguage });
       setCurrentMyTranscript("");
       setFinalMyTranscript("");
@@ -763,6 +769,11 @@ export function useRealtimeTranslation() {
       return;
     }
 
+    if (isSameLanguagePair(sourceLanguageRef.current, targetLanguageRef.current)) {
+      setErrorMessage("源语言和目标语言不能相同。");
+      return;
+    }
+
     setErrorMessage("");
     resetCurrentCaptions();
     updateStatus("requesting_permission");
@@ -1005,6 +1016,11 @@ export function useRealtimeTranslation() {
       conversationModeRef.current !== "LISTENING_TO_OTHER" ||
       activeDirectionRef.current !== "conversation"
     ) {
+      return;
+    }
+
+    if (isSameLanguagePair(sourceLanguage, targetLanguage)) {
+      setErrorMessage("源语言和目标语言不能相同。");
       return;
     }
 
